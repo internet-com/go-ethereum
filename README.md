@@ -1,32 +1,9 @@
-## Go Ethereum
+## Go Ethereum - Korean comments
 
-Official golang implementation of the Ethereum protocol.
-
-[![API Reference](
-https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
-)](https://godoc.org/github.com/ethereum/go-ethereum)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ethereum/go-ethereum)](https://goreportcard.com/report/github.com/ethereum/go-ethereum)
-[![Travis](https://travis-ci.org/ethereum/go-ethereum.svg?branch=master)](https://travis-ci.org/ethereum/go-ethereum)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethereum/go-ethereum?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-
-Automated builds are available for stable releases and the unstable master branch.
-Binary archives are published at https://geth.ethereum.org/downloads/.
-
-## Building the source
-
-For prerequisites and detailed build instructions please read the
-[Installation Instructions](https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum)
-on the wiki.
-
-Building geth requires both a Go (version 1.7 or later) and a C compiler.
-You can install them using your favourite package manager.
-Once the dependencies are installed, run
-
-    make geth
-
-or, to build the full suite of utilities:
-
-    make all
+이더리움 한글 주석 프로젝트입니다.
+동작 분석 결과는 
+https://docs.google.com/presentation/d/1IEoHhCP83uEQLf3e5IrwVUn6gTZXIeJ8xzPzd1XcXvQ/edit?usp=sharing
+https://steemit.com/@sigmoid 를 통해 꾸준히 업데이트 하고 있습니다
 
 ## Executables
 
@@ -34,10 +11,16 @@ The go-ethereum project comes with several wrappers/executables found in the `cm
 
 | Command    | Description |
 |:----------:|-------------|
-| **`geth`** | Our main Ethereum CLI client. It is the entry point into the Ethereum network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the Ethereum network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `geth --help` and the [CLI Wiki page](https://github.com/ethereum/go-ethereum/wiki/Command-Line-Options) for command line options. |
-| `abigen` | Source code generator to convert Ethereum contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [Ethereum contract ABIs](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/ethereum/go-ethereum/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts) wiki page for details. |
-| `bootnode` | Stripped down version of our Ethereum client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. |
-| `evm` | Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). |
+| **`geth`** | Our main Ethereum CLI client. It is the entry point into the Ethereum network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the Ethereum network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `geth --help` and the [CLI Wiki page](https://github.com/ethereum/go-ethereum/wiki/Command-Line-Options) for command line options. 
+geth는 메인 이더리움 CLI(커맨드라인 인터페이스 클라이언트) 이다. 이것은 이더리움 네트워크로 진입하는 시작점이며
+풀, 아카이브, 라이트 노드로 동작가능하다. http, 웹소켓과 IPC의 상위에 노출된 json rpc 엔드포인트를 통해 이더리움 네트워크에
+접속하는 중간자로 사용될수도 있다. |
+| `abigen` | Source code generator to convert Ethereum contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [Ethereum contract ABIs](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/ethereum/go-ethereum/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts) wiki page for details. 
+abigen은 이더리움 계약을 고 패키지로 컨버팅하는 코드 생성자이다.|
+| `bootnode` | Stripped down version of our Ethereum client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. 
+boot node는 이더리움 클라이언트의 다이어트 버전으로 노드 디스커버리 프로토콜의 일부만을 담당한다|
+| `evm` | Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). 
+evm은 EVM의 개발자 버전으로 주어진 설정과 실행모드로 바이트 코드의 일부를 실행해 볼 수 있다|
 | `gethrpctest` | Developer utility tool to support our [ethereum/rpc-test](https://github.com/ethereum/rpc-tests) test suite which validates baseline conformity to the [Ethereum JSON RPC](https://github.com/ethereum/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/ethereum/rpc-tests/blob/master/README.md) for details. |
 | `rlpdump` | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://github.com/ethereum/wiki/wiki/RLP)) dumps (data encoding used by the Ethereum protocol both network as well as consensus wise) to user friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`). |
 | `swarm`    | swarm daemon and tools. This is the entrypoint for the swarm network. `swarm --help` for command line options and subcommands. See https://swarm-guide.readthedocs.io for swarm documentation. |
@@ -229,6 +212,8 @@ $ geth init path/to/genesis.json
 
 With all nodes that you want to run initialized to the desired genesis state, you'll need to start a
 bootstrap node that others can use to find each other in your network and/or over the internet. The
+테스트 환경에서 모든 노드가 동일한 제네시스 스테이트로 초기화되어 실행되길 원한다면
+인터넷 상에서 서로를 찾을수 있도록 부트스트랩 노드를 실행해야 한다(랑데뷰 포인트)
 clean way is to configure and run a dedicated bootnode:
 
 ```
@@ -249,6 +234,8 @@ With the bootnode operational and externally reachable (you can try `telnet <ip>
 it's indeed reachable), start every subsequent Geth node pointed to the bootnode for peer discovery
 via the `--bootnodes` flag. It will probably also be desirable to keep the data directory of your
 private network separated, so do also specify a custom `--datadir` flag.
+부트노드가 동작중이고 접속가능한 상황에서 모든 뒤잇는 게스노드는 해당 부트노드를 가리키는 옵션과 함께 시작하여 피어를 발견하도록한다
+
 
 ```
 $ geth --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-from-above>

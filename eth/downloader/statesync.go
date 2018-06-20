@@ -71,6 +71,7 @@ func (d *Downloader) syncState(root common.Hash) *stateSync {
 
 // stateFetcher manages the active state sync and accepts requests
 // on its behalf.
+// statefetcher는 피어 일동의 active state 동기화 및 요청 수락을 관리한다
 func (d *Downloader) stateFetcher() {
 	for {
 		select {

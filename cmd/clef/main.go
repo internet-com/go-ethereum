@@ -16,6 +16,7 @@
 
 // signer is a utility that can be used so sign transactions and
 // arbitrary data.
+// 임의의 데이터와 트렌젝션에 사인하는데 사용가능한 유틸리티이다
 package main
 
 import (

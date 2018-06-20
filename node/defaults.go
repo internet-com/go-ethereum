@@ -34,6 +34,13 @@ const (
 )
 
 // DefaultConfig contains reasonable default settings.
+// data 위치설정
+// http 포트 설정
+// http 모듈에 net, web3 설정
+// websocket 모듈에 net,web3설정
+// p2p 설정: max peer는 25개
+// any 함수는 로컬 네트워크의 지원가능한 메카니즘(UPNP or NAT-pmp) 을 발견하려 노력하는 포트 맵퍼를 리턴한다
+
 var DefaultConfig = Config{
 	DataDir:          DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,

@@ -536,6 +536,7 @@ func (ps *peerSet) notify(n peerSetNotify) {
 	ps.lock.Unlock()
 
 	for _, p := range peers {
+		//txrelay.go 참조
 		n.registerPeer(p)
 	}
 }

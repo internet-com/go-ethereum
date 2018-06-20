@@ -32,6 +32,10 @@ var errBadChannel = errors.New("event: Subscribe argument does not have sendable
 // match.
 //
 // The zero value is ready to use.
+
+//Feed는 이벤트의 운반자가 채널일때 one to many 구독을 구현한다.
+//Feed로 보내진 값들은 구독중인 모든 채널들에 동시적으로 전달된다
+//Feed는 단일 타입으로만 사용 가능하다. 타입은 첫번째 전송이나 구독에 의해 결정된다.
 type Feed struct {
 	once      sync.Once        // ensures that init only runs once
 	sendLock  chan struct{}    // sendLock has a one-element buffer and is empty when held.It protects sendCases.
@@ -67,9 +71,13 @@ func (f *Feed) init() {
 
 // Subscribe adds a channel to the feed. Future sends will be delivered on the channel
 // until the subscription is canceled. All channels added must have the same element type.
-//
 // The channel should have ample buffer space to avoid blocking other subscribers.
 // Slow subscribers are not dropped.
+
+// 구독함수는 전달된 채널을 피드로 등록한다
+// 이후에 보내지는 데이터들은 구독이 취소될 때까지 이 채널로 전달될 것이다. 
+// 모든 채널은 동일한 원소타입을 가져야 한다
+// 채널은 다른 구독자들의 블록킹을 피하기 위해 ample bufer를 가지고 있어야 한다
 func (f *Feed) Subscribe(channel interface{}) Subscription {
 	f.once.Do(f.init)
 
@@ -126,6 +134,8 @@ func (f *Feed) remove(sub *feedSub) {
 
 // Send delivers to all subscribed channels simultaneously.
 // It returns the number of subscribers that the value was sent to.
+// 이 함수는 구독한 채널들에게 값을 일제히 전달한다.
+// 해당 값이 전달된 피어의 수를 리턴한다
 func (f *Feed) Send(value interface{}) (nsent int) {
 	rvalue := reflect.ValueOf(value)
 

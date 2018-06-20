@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package fetcher contains the block announcement based synchronisation.
+// 페쳐 패키지는 동기화 기반의 블록알림기능(어나운스먼트)를 포함한다.
 package fetcher
 
 import (
@@ -30,12 +31,19 @@ import (
 )
 
 const (
+	// 어나운스 된 블록이 명백하게 요구되었을때까지 허용시간 
 	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced block is explicitly requested
+	// 거의 만료된 알려진 블럭을 수집하는 인터벌
 	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+	// 명백하게 요구된 블록의 반환을 위해 할당된 최대 시간
 	fetchTimeout  = 5 * time.Second        // Maximum allotted time to return an explicitly requested block
+	// 체인헤드로부터 뒷쪽으로 허용되는 최대거리
 	maxUncleDist  = 7                      // Maximum allowed backward distance from the chain head
+	// 체인헤드로부터 큐까지 허용되는 최대거리
 	maxQueueDist  = 32                     // Maximum allowed distance from the chain head to queue
+	// 피어가 요구했을지 모르는 유일한 블록의 최대 숫자
 	hashLimit     = 256                    // Maximum number of unique blocks a peer may have announced
+	// 피어가 전달했을지 모르는 유일한 블록의 최대 숫자
 	blockLimit    = 64                     // Maximum number of unique blocks a peer may have delivered
 )
 
@@ -69,6 +77,7 @@ type peerDropFn func(id string)
 
 // announce is the hash notification of the availability of a new block in the
 // network.
+// 어나운스는 네트워크에 새 블록의 가용성을 알리는 해시 알림이다
 type announce struct {
 	hash   common.Hash   // Hash of the block being announced
 	number uint64        // Number of the block being announced (0 = unknown | old protocol)
@@ -105,6 +114,8 @@ type inject struct {
 
 // Fetcher is responsible for accumulating block announcements from various peers
 // and scheduling them for retrieval.
+// fetcher는 여러 피어로 부터 발생한 블록알림을 누적하고, 
+// 반환을 위해 스케쥴링하는것을 담당한다
 type Fetcher struct {
 	// Various event channels
 	notify chan *announce
@@ -146,6 +157,7 @@ type Fetcher struct {
 }
 
 // New creates a block fetcher to retrieve blocks based on hash announcements.
+// 해쉬 어나운스먼트를 기반으로 블록을 반환하기 위한 블록패쳐를 만든다
 func New(getBlock blockRetrievalFn, verifyHeader headerVerifierFn, broadcastBlock blockBroadcasterFn, chainHeight chainHeightFn, insertChain chainInsertFn, dropPeer peerDropFn) *Fetcher {
 	return &Fetcher{
 		notify:         make(chan *announce),
@@ -174,6 +186,8 @@ func New(getBlock blockRetrievalFn, verifyHeader headerVerifierFn, broadcastBloc
 
 // Start boots up the announcement based synchroniser, accepting and processing
 // hash notifications and block fetches until termination requested.
+// 이함수는 어나운스 기반의 동기화를 시작하며 
+// 종료되기 전까지 해시노티와 블록 패치를 수락하고 처리한다
 func (f *Fetcher) Start() {
 	go f.loop()
 }
@@ -186,6 +200,7 @@ func (f *Fetcher) Stop() {
 
 // Notify announces the fetcher of the potential availability of a new block in
 // the network.
+// Notify 함수는 네트워크에 새블록의 사용 가능성을 알린다
 func (f *Fetcher) Notify(peer string, hash common.Hash, number uint64, time time.Time,
 	headerFetcher headerRequesterFn, bodyFetcher bodyRequesterFn) error {
 	block := &announce{
@@ -276,6 +291,7 @@ func (f *Fetcher) FilterBodies(peer string, transactions [][]*types.Transaction,
 
 // Loop is the main fetcher loop, checking and processing various notification
 // events.
+// fetcher의 메인 루프로서 여러 노티이벤트를 체크하고 프로세싱한다
 func (f *Fetcher) loop() {
 	// Iterate the block fetching until a quit is requested
 	fetchTimer := time.NewTimer(0)
@@ -283,12 +299,14 @@ func (f *Fetcher) loop() {
 
 	for {
 		// Clean up any expired block fetches
+		// 타임아웃된 블록을 지운다
 		for hash, announce := range f.fetching {
 			if time.Since(announce.time) > fetchTimeout {
 				f.forgetHash(hash)
 			}
 		}
 		// Import any queued blocks that could potentially fit
+		// 적절해보이는 큐잉된 블록을 가져온다
 		height := f.chainHeight()
 		for !f.queue.Empty() {
 			op := f.queue.PopItem().(*inject)
@@ -310,6 +328,7 @@ func (f *Fetcher) loop() {
 				f.forgetBlock(hash)
 				continue
 			}
+			// 블록 삽입
 			f.insert(op.origin, op.block)
 		}
 		// Wait for an outside event to occur
@@ -431,6 +450,8 @@ func (f *Fetcher) loop() {
 			// Headers arrived from a remote peer. Extract those that were explicitly
 			// requested by the fetcher, and return everything else so it's delivered
 			// to other parts of the system.
+			// 원격피어로부터 헤더들이 도착함. 페쳐에의해 명백하게 요구된 헤더들을 풀어, 
+			// 시스템의 다른 파트들에게 전달하기 위한 모든것을 리턴한다.
 			var task *headerFilterTask
 			select {
 			case task = <-filter:
@@ -499,6 +520,7 @@ func (f *Fetcher) loop() {
 				}
 			}
 			// Schedule the header-only blocks for import
+			// 헤더만 있는 블록을 입수하기 위해 스케쥴한다
 			for _, block := range complete {
 				if announce := f.completing[block.Hash()]; announce != nil {
 					f.enqueue(announce.origin, block)
@@ -635,6 +657,9 @@ func (f *Fetcher) enqueue(peer string, block *types.Block) {
 // insert spawns a new goroutine to run a block insertion into the chain. If the
 // block's number is at the same height as the current import phase, it updates
 // the phase states accordingly.
+// 이함수는 블록을 체인에 넣기 위한 새로운 고루틴을 생성한다. 
+// 만약 블록넘버가 현재 가져온 페이즈의 높이와 같을 경우 
+// 그에 맞춰 페이즈 스테이트를 업데이트 한다 
 func (f *Fetcher) insert(peer string, block *types.Block) {
 	hash := block.Hash()
 

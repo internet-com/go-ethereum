@@ -25,6 +25,7 @@ import (
 )
 
 // NewStateSync create a new state trie download scheduler.
+// NewStateSync함수는 새 스테이트 다운로드 스케쥴러를 생성한다
 func NewStateSync(root common.Hash, database trie.DatabaseReader) *trie.TrieSync {
 	var syncer *trie.TrieSync
 	callback := func(leaf []byte, parent common.Hash) error {

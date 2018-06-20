@@ -71,6 +71,7 @@ type distReq struct {
 }
 
 // newRequestDistributor creates a new request distributor
+// peer들에게 요청을 전달할 채널들을 생성한다.
 func newRequestDistributor(peers *peerSet, stopChn chan struct{}) *requestDistributor {
 	d := &requestDistributor{
 		reqQueue: list.New(),
@@ -81,6 +82,7 @@ func newRequestDistributor(peers *peerSet, stopChn chan struct{}) *requestDistri
 	if peers != nil {
 		peers.notify(d)
 	}
+	//loop 시작.
 	go d.loop()
 	return d
 }

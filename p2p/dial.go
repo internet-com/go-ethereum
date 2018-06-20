@@ -345,6 +345,7 @@ type dialError struct {
 }
 
 // dial performs the actual connection attempt.
+// dial 함수는 실제 연결을 수행한다
 func (t *dialTask) dial(srv *Server, dest *discover.Node) error {
 	fd, err := srv.Dialer.Dial(dest)
 	if err != nil {

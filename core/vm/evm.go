@@ -84,6 +84,8 @@ type Context struct {
 // sure that any errors generated are to be considered faulty code.
 //
 // The EVM should never be reused and is not thread safe.
+// EVM은 이더리움 가상머신의 기본 객체이며, 주어진 컨텍스트와 
+// 주어진 상태를 가지고 계약을 실행시키는데 필요한 도구를 제공한다
 type EVM struct {
 	// Context provides auxiliary blockchain related information
 	Context
@@ -136,6 +138,9 @@ func (evm *EVM) Cancel() {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
+// Call 함수는 파라미터로 주어진 입력과 주소에 대한 계약을 실행한다.
+// 또한 이함수는 가치전송에 요구되는 모든것과, 계정을 생성하기위해 필요한 단계와 
+// 전송 실패나, 실행 오류로인한 상태의 복원을 다룬다.
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil

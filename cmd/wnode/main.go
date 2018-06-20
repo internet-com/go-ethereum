@@ -16,7 +16,7 @@
 
 // This is a simple Whisper node. It could be used as a stand-alone bootstrap node.
 // Also, could be used for different test and diagnostics purposes.
-
+// simple whisper 노드이다
 package main
 
 import (

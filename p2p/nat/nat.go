@@ -147,6 +147,7 @@ func (extIP) DeleteMapping(string, int, int) error                     { return 
 
 // Any returns a port mapper that tries to discover any supported
 // mechanism on the local network.
+// 이 함수는 로컬 네트워크의 지원가능한 메카니즘(UPNP or NAT-pmp) 을 발견하려 노력하는 포트 맵퍼를 리턴한다
 func Any() Interface {
 	// TODO: attempt to discover whether the local machine has an
 	// Internet-class address. Return ExtIP in this case.

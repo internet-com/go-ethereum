@@ -66,6 +66,7 @@ func (ethash *Ethash) Author(header *types.Header) (common.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
+// 이 함수는 헤더가 이더리움 합의룰을 따르는지 체크한다
 func (ethash *Ethash) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
 	// If we're running a full engine faking, accept any input as valid
 	if ethash.config.PowMode == ModeFullFake {
@@ -80,13 +81,22 @@ func (ethash *Ethash) VerifyHeader(chain consensus.ChainReader, header *types.He
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
+
 	// Sanity checks passed, do a proper verification
+	// 이 함수는 verifyheader와 유사하지만 여러개의 헤더를 동시에 검증한다.
+	// 메소드는 동작종료를 위해 quit채널을 리턴하거나, 
+	// 비동기 검증을 검색하기 위한 결과 채널을 리턴한다
 	return ethash.verifyHeader(chain, header, parent, false, seal)
 }
+
+
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications.
+// 이 함수는 verifyheader와 유사하지만 여러개의 헤더를 동시에 검증한다.
+// 메소드는 동작종료를 위해 quit채널을 리턴하거나, 
+// 비동기 검증을 검색하기 위한 결과 채널을 리턴한다
 func (ethash *Ethash) VerifyHeaders(chain consensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
 	// If we're running a full engine faking, accept any input as valid
 	if ethash.config.PowMode == ModeFullFake || len(headers) == 0 {
@@ -502,6 +512,7 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the ethash protocol. The changes are done inline.
+//이 함수는 합의엔진을 구현한다. 헤더가 ethash 프로토콜을 따르도록 난이도 필드를 초기화 한다.
 func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
@@ -513,6 +524,8 @@ func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header)
 
 // Finalize implements consensus.Engine, accumulating the block and uncle rewards,
 // setting the final state and assembling the block.
+// 이 함수는 컨센서스 엔진을 구현한다. 
+// 블록을 누적하고 엉클 리워드를 하고 최종 상태를 설정하고 블록을 조립한다
 func (ethash *Ethash) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// Accumulate any block and uncle rewards and commit the final state root
 	accumulateRewards(chain.Config(), state, header, uncles)

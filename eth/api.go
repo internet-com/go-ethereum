@@ -42,6 +42,7 @@ import (
 
 // PublicEthereumAPI provides an API to access Ethereum full node-related
 // information.
+// PublicEthereumAPI는 이더리움 풀노드 관련된 정보에 접속하는 api를 제공한다
 type PublicEthereumAPI struct {
 	e *Ethereum
 }
@@ -88,6 +89,8 @@ func (api *PublicMinerAPI) Mining() bool {
 
 // SubmitWork can be used by external miner to submit their POW solution. It returns an indication if the work was
 // accepted. Note, this is not an indication if the provided work was valid!
+// 이 함수는 외부 마이너가 자신의 pow솔루션을 제출하기 위해 사용된다. 
+// 반환값은 제출이 수락되었는지를 나타낸다
 func (api *PublicMinerAPI) SubmitWork(nonce types.BlockNonce, solution, digest common.Hash) bool {
 	return api.agent.SubmitWork(nonce, digest, solution)
 }
@@ -132,6 +135,9 @@ func NewPrivateMinerAPI(e *Ethereum) *PrivateMinerAPI {
 // of workers started is equal to the number of logical CPUs that are usable by
 // this process. If mining is already running, this method adjust the number of
 // threads allowed to use.
+// 주어진 스레드의 갯수만큼 마이너를 실행시킨다. 스래드의 갯수가 0일경우
+// 논리 CPU갯수만큼으로 설정된다. 만약 마이닝이 이미 실행중이라면 
+// 스레드 갯수의 조절을 위해 사용된다
 func (api *PrivateMinerAPI) Start(threads *int) error {
 	// Set the number of threads if the seal engine supports it
 	if threads == nil {
@@ -245,6 +251,7 @@ func hasAllBlocks(chain *core.BlockChain, bs []*types.Block) bool {
 }
 
 // ImportChain imports a blockchain from a local file.
+// 이 함수는 블록체인을 로컬파일로 부터 가져온다
 func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 	// Make sure the can access the file to import
 	in, err := os.Open(file)

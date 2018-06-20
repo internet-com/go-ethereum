@@ -219,6 +219,8 @@ func (m *txSortedMap) Flatten() types.Transactions {
 // nonce. The same type can be used both for storing contiguous transactions for
 // the executable/pending queue; and for storing gapped transactions for the non-
 // executable/future queue, with minor behavioral changes.
+// txList는 하나의 어카운트에 속하는 트렌젝션의 리스트이며, 어카운트 논스에 의해 정렬된다.
+// 펜딩큐와 실행큐양쪽에서 연속된 트렌젝션을 저장하기 위해 사용된다
 type txList struct {
 	strict bool         // Whether nonces are strictly continuous or not
 	txs    *txSortedMap // Heap indexed sorted hash map of the transactions

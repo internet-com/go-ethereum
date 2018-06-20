@@ -5,6 +5,7 @@
 // Adapted from: https://golang.org/src/crypto/cipher/xor.go
 
 // Package bitutil implements fast bitwise operations.
+// bitutil 패키지는 bitwise op를 구현한다
 package bitutil
 
 import (

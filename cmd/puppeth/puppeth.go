@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // puppeth is a command to assemble and maintain private networks.
+// puppeth는 프라이빗 네트워크를 조합하고 유지하기 위한 명령이다
 package main
 
 import (

@@ -90,6 +90,8 @@ type Network struct {
 // transport is implemented by the UDP transport.
 // it is an interface so we can test without opening lots of UDP
 // sockets and without generating a private key.
+// transport인터페이스는 UDP 통신을 구현한다
+// 이것은 인터페이스이기 때문에 udp소켓과 프라이빗키 생성없이 테스트가 가능하다
 type transport interface {
 	sendPing(remote *Node, remoteAddr *net.UDPAddr, topics []Topic) (hash []byte)
 	sendNeighbours(remote *Node, nodes []*Node)

@@ -44,6 +44,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
 // fork switch-over blocks through the chain configuration.
+// 제네시스 구조체는 헤더필드 와 제네시스 블록의상태를 정의한다
 type Genesis struct {
 	Config     *params.ChainConfig `json:"config"`
 	Nonce      uint64              `json:"nonce"`
@@ -63,6 +64,7 @@ type Genesis struct {
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
+// 이타입은 제네시스 블록의 일부의 초기상태를 정의한다.
 type GenesisAlloc map[common.Address]GenesisAccount
 
 func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
@@ -150,25 +152,35 @@ func (e *GenesisMismatchError) Error() string {
 // error is a *params.ConfigCompatError and the new, unwritten config is returned.
 //
 // The returned chain configuration is never nil.
+
+// DB가 비었을때 사용할 제네시스 블록.
+// 기본적으로 비어있으므로 이더리움 메인넷 블록이 사용될것이다
 func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+	//제네시스 블록이 넘어왔을경우 - 일단 패스
 	if genesis != nil && genesis.Config == nil {
 		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
+	// core/rawdb/accessors_chain.go 참조
+	// db에서 제네시스 블록에 기록되어 있을 캐노니컬 해시를 읽는다.
+	// 블록의 해시가 없다면/혹은 비었다면 커먼해시를 리턴
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
+		//전달된 제네시스가 없다면 메인넷 블럭을 사용한다. 
 		if genesis == nil {
 			log.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
 			log.Info("Writing custom genesis block")
 		}
+		// 새블록을 commit한다(제네시스 블록)
 		block, err := genesis.Commit(db)
 		return genesis.Config, block.Hash(), err
 	}
 
 	// Check whether the genesis block is already written.
+	// 제네시스가 이미 있다면 해당블록의 해시를 체크한다 
 	if genesis != nil {
 		hash := genesis.ToBlock(nil).Hash()
 		if hash != stored {
@@ -177,6 +189,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	}
 
 	// Get the existing chain configuration.
+	// net의 config가 test net인지 main net인지 체크함.
 	newcfg := genesis.configOrDefault(stored)
 	storedcfg := rawdb.ReadChainConfig(db, stored)
 	if storedcfg == nil {

@@ -59,6 +59,7 @@ type Dashboard struct {
 	config *Config
 
 	listener net.Listener
+	// 활성화된 웹소켓 연결들
 	conns    map[uint32]*client // Currently live websocket connections
 	charts   *SystemMessage
 	commit   string
@@ -259,6 +260,7 @@ func (db *Dashboard) apiHandler(conn *websocket.Conn) {
 }
 
 // collectData collects the required data to plot on the dashboard.
+// 대시보드에 그려질 데이터를 수집한다
 func (db *Dashboard) collectData() {
 	defer db.wg.Done()
 	systemCPUUsage := gosigar.Cpu{}
@@ -389,6 +391,7 @@ func (db *Dashboard) collectLogs() {
 }
 
 // sendToAll sends the given message to the active dashboards.
+// 활성화된 데시보드들에게 메시지를 전송한다
 func (db *Dashboard) sendToAll(msg *Message) {
 	db.lock.Lock()
 	for _, c := range db.conns {

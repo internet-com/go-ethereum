@@ -13,7 +13,8 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
+// RPC패키지는 네트워크나 다른 IO연결을 통해 
+// 외부로 노출된 함수에 접근하는 오브젝트를 제공한다
 /*
 Package rpc provides access to the exported methods of an object across a network
 or other I/O connection. After creating a server instance objects can be registered,

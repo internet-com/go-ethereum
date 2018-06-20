@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package downloader contains the manual full chain synchronisation.
+// 이 패키지는 수동적인 풀체인 동기화를 제공한다
 package downloader
 
 import (
@@ -198,6 +199,7 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
+// 해쉬나 블록을 원격피어로 부터 가져오는 다운로더를 만든다
 func New(mode SyncMode, stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
@@ -228,7 +230,9 @@ func New(mode SyncMode, stateDb ethdb.Database, mux *event.TypeMux, chain BlockC
 		},
 		trackStateReq: make(chan *stateReq),
 	}
+	// Qos 튜너는 산발적으로 피어들의 지연속도를 모아 예측시간을 업데이트 한다
 	go dl.qosTuner()
+	// statefetcher는 피어 일동의 active state 동기화 및 요청 수락을 관리한다
 	go dl.stateFetcher()
 	return dl
 }
@@ -313,6 +317,8 @@ func (d *Downloader) UnregisterPeer(id string) error {
 
 // Synchronise tries to sync up our local block chain with a remote peer, both
 // adding various sanity checks as well as wrapping it with various log entries.
+// Synchronise함수는 우리의 로컬블록체인을 외부피어와 동기화 하기위해 
+// 로그를 포함한 여러가지 무결성 검사를 추가하려 노력한다
 func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, mode SyncMode) error {
 	err := d.synchronise(id, head, td, mode)
 	switch err {
@@ -339,6 +345,9 @@ func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, mode 
 // synchronise will select the peer and use it for synchronising. If an empty string is given
 // it will use the best peer possible and synchronize if its TD is higher than our own. If any of the
 // checks fail an error will be returned. This method is synchronous
+// 이함수는 피어를 선택하여 동기화에 이용한다. 만약 빈 문자열이 주어진다면
+// 우리 TD보다 높은 베스트 피어를 선택하여 동기화 한다.
+// 하나라도 실패하면 에러가 반환된다
 func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode SyncMode) error {
 	// Mock out the synchronisation if testing
 	if d.synchroniseMock != nil {
@@ -476,6 +485,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 
 // spawnSync runs d.process and all given fetcher functions to completion in
 // separate goroutines, returning the first error that appears.
+// spawnSync는 d.process와 전달된 모든 페처 함수를 분리된 고루틴에서 실행한다.
 func (d *Downloader) spawnSync(fetchers []func() error) error {
 	errc := make(chan error, len(fetchers))
 	d.cancelWg.Add(len(fetchers))
@@ -1157,6 +1167,8 @@ func (d *Downloader) fetchParts(errCancel error, deliveryCh chan dataPack, deliv
 // processHeaders takes batches of retrieved headers from an input channel and
 // keeps processing and scheduling them into the header chain and downloader's
 // queue until the stream ends or a failure occurs.
+// proessHeaders 인풋채널로 반환된 여러개의 해더를 
+// 프로세싱하고 다운로드 큐에 스케쥴링한다 
 func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) error {
 	// Keep a count of uncertain headers to roll back
 	rollback := []*types.Header{}
@@ -1568,6 +1580,7 @@ func (d *Downloader) deliver(id string, destCh chan dataPack, packet dataPack, i
 
 // qosTuner is the quality of service tuning loop that occasionally gathers the
 // peer latency statistics and updates the estimated request round trip time.
+// Qos 튜너는 산발적으로 피어들의 지연속도를 모아 예측시간을 업데이트 한다
 func (d *Downloader) qosTuner() {
 	for {
 		// Retrieve the current median RTT and integrate into the previoust target RTT

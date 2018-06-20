@@ -37,6 +37,8 @@ var (
 
 // retrieveManager is a layer on top of requestDistributor which takes care of
 // matching replies by request ID and handles timeouts and resends if necessary.
+//검색매니져는 요청분산자의 탑 레이어로서
+//request ID에 대응하여 응답하고, 타임아웃과 재전송을 관리한다.
 type retrieveManager struct {
 	dist       *requestDistributor
 	peers      *peerSet

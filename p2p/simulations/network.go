@@ -57,6 +57,8 @@ type Network struct {
 	connMap map[string]int
 
 	nodeAdapter adapters.NodeAdapter
+//Feed는 이벤트의 운반자가 채널일때 one to many 구독을 구현한다.
+//Feed로 보내진 값들은 구독중인 모든 채널들에 동시적으로 전달된다
 	events      event.Feed
 	lock        sync.RWMutex
 	quitc       chan struct{}
@@ -214,6 +216,8 @@ func (net *Network) startWithSnapshots(id discover.NodeID, snapshots map[string]
 
 // watchPeerEvents reads peer events from the given channel and emits
 // corresponding network events
+// watchPeerEvents 는 피어의 이벤트를 주어진 채널에서 읽어
+// 관련된 네트워크 이벤트를 발산시킨다
 func (net *Network) watchPeerEvents(id discover.NodeID, events chan *p2p.PeerEvent, sub event.Subscription) {
 	defer func() {
 		sub.Unsubscribe()
@@ -240,6 +244,7 @@ func (net *Network) watchPeerEvents(id discover.NodeID, events chan *p2p.PeerEve
 			case p2p.PeerEventTypeDrop:
 				net.DidDisconnect(id, peer)
 
+			//geth 에서 트랜젝션을 보낼경우 발생하는 메시지이다
 			case p2p.PeerEventTypeMsgSend:
 				net.DidSend(id, peer, event.Protocol, *event.MsgCode)
 
@@ -341,6 +346,7 @@ func (net *Network) DidDisconnect(one, other discover.NodeID) error {
 }
 
 // DidSend tracks the fact that "sender" sent a message to "receiver"
+// DidSend는 전송자가 수신자로 메시지를 보냈다는 것을 트렉킹한다
 func (net *Network) DidSend(sender, receiver discover.NodeID, proto string, code uint64) error {
 	msg := &Msg{
 		One:      sender,
@@ -349,6 +355,8 @@ func (net *Network) DidSend(sender, receiver discover.NodeID, proto string, code
 		Code:     code,
 		Received: false,
 	}
+	// 이 함수는 구독한 채널에 값을 일제히 전달한다.
+	// 해당 값이 전달된 피어의 수를 리턴한다
 	net.events.Send(NewEvent(msg))
 	return nil
 }

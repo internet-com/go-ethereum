@@ -88,6 +88,7 @@ type Msg struct {
 
 // Retrieve tries to fetch an object from the LES network.
 // If the network retrieval was successful, it stores the object in local db.
+// LES network에서 오브젝트를 fetch하기 위해 트라이들을 검색한다.
 func (odr *LesOdr) Retrieve(ctx context.Context, req light.OdrRequest) (err error) {
 	lreq := LesRequest(req)
 

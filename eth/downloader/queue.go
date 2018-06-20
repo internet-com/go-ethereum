@@ -64,6 +64,7 @@ type fetchResult struct {
 }
 
 // queue represents hashes that are either need fetching or are being fetched
+// queue 구조체는 패치가 필요하거나 패치된 해시를 나타낸다
 type queue struct {
 	mode SyncMode // Synchronisation mode to decide on the block parts to schedule for fetching
 

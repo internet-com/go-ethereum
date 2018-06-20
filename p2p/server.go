@@ -144,6 +144,8 @@ type Config struct {
 }
 
 // Server manages all peer connections.
+// 서버 구조체는 모든 피어들과의 연결을 관리한다
+// discv5 이용
 type Server struct {
 	// Config fields may not be modified while the server is running.
 	Config
@@ -196,6 +198,7 @@ const (
 
 // conn wraps a network connection with information gathered
 // during the two handshakes.
+// conn 구조체는 두번의 핸드쉐이크중에 얻어진 정보와 함께 네트워크를 포괄한다
 type conn struct {
 	fd net.Conn
 	transport
@@ -381,6 +384,8 @@ func (s *sharedUDPConn) Close() error {
 
 // Start starts running the server.
 // Servers can not be re-used after stopping.
+// 서버를 시작한다
+// TODO : RLPX, Discovery5, handshake/dial/listen
 func (srv *Server) Start() (err error) {
 	srv.lock.Lock()
 	defer srv.lock.Unlock()
@@ -395,6 +400,7 @@ func (srv *Server) Start() (err error) {
 	srv.log.Info("Starting P2P networking")
 
 	// static fields
+	// newRLPX
 	if srv.PrivateKey == nil {
 		return fmt.Errorf("Server.PrivateKey must be set to a non-nil key")
 	}
@@ -737,6 +743,7 @@ type tempError interface {
 
 // listenLoop runs in its own goroutine and accepts
 // inbound connections.
+// listenLoop는 들어오는 연결에 대한 수락을 고유의 고루틴에서 수행한다
 func (srv *Server) listenLoop() {
 	defer srv.loopWG.Done()
 	srv.log.Info("RLPx listener up", "self", srv.makeSelf(srv.listener, srv.ntab))
@@ -792,6 +799,8 @@ func (srv *Server) listenLoop() {
 // SetupConn runs the handshakes and attempts to add the connection
 // as a peer. It returns when the connection has been added as a peer
 // or the handshakes have failed.
+// SetupConn함수는 핸드쉐이크를 수행하고 피어의 연결을 추가한다
+// 이 함수는 커넥션이 피어로 추가되거나 핸드쉐이크가 실패했을 경우 리턴한다
 func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *discover.Node) error {
 	self := srv.Self()
 	if self == nil {
@@ -862,6 +871,8 @@ func truncateName(s string) string {
 
 // checkpoint sends the conn to run, which performs the
 // post-handshake checks for the stage (posthandshake, addpeer).
+// checkpoint 함수는 스테이지를 위해 포스트 핸드쉐이크를 체크를 수행하기 위해 
+// 실행할 커넥션을 전송한다 
 func (srv *Server) checkpoint(c *conn, stage chan<- *conn) error {
 	select {
 	case stage <- c:
@@ -879,6 +890,8 @@ func (srv *Server) checkpoint(c *conn, stage chan<- *conn) error {
 // runPeer runs in its own goroutine for each peer.
 // it waits until the Peer logic returns and removes
 // the peer.
+// runPeer함수는 각 피어를 위해 고유의 go 루틴에서 실행된다.
+
 func (srv *Server) runPeer(p *Peer) {
 	if srv.newPeerHook != nil {
 		srv.newPeerHook(p)

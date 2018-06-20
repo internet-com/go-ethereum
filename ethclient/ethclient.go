@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package ethclient provides a client for the Ethereum RPC API.
+// 이 패키지는 이더리움 RPC API를 위한 클라이언트를 제공한다
 package ethclient
 
 import (
@@ -33,6 +34,7 @@ import (
 )
 
 // Client defines typed wrappers for the Ethereum RPC API.
+// Client 구조체는 이더리움 RPC API를 위해 정의되었음
 type Client struct {
 	c *rpc.Client
 }
@@ -476,6 +478,9 @@ func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
+// 이 함수는 사인돈 트렌젝션을 실행을 위해 펜딩풀에 넣는다.
+// 만약 트렌젝션이 스마트 계약을 생성하는 것이라면 , 트렌젝션이 마이닝된 이후에,
+// 트렌젝션 영수증 함수를 이용하여 주소를 얻는다
 func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {

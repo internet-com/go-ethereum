@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package bmt provides a binary merkle tree implementation
+// bmt 패키지는 바이너리 머클트리 구현을 제공한다
 package bmt
 
 import (
@@ -48,6 +49,12 @@ Two implementations are provided:
   It implements the ChunkHash interface as well as the go standard hash.Hash interface
 
 */
+
+// 바이나리 머클트리해시 는 제한된 사이즈의 불명확한 데이터를 위한 해시함수이다.
+// 바이너리 머클트리의 루트해시는 아무 기본 해시함수를 사용한 
+// 고정크기 조각들의 덩어리로 정의된다.
+// BMT는 컴팩트한 포함 검증을 제공하기에 적합하다 
+
 
 const (
 	// DefaultSegmentCount is the maximum number of segments of the underlying chunk

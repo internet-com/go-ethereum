@@ -30,6 +30,7 @@ import (
 )
 
 var (
+// 지갑 명령어
 	walletCommand = cli.Command{
 		Name:      "wallet",
 		Usage:     "Manage Ethereum presale wallets",
@@ -61,10 +62,11 @@ passwordfile as argument containing the wallet password in plaintext.`,
 will prompt for your password and imports your ether presale account.
 It can be used non-interactively with the --password option taking a
 passwordfile as argument containing the wallet password in plaintext.`,
+// wallet의 import는 지갑 비밀번호 입력을 위한 프롬프트를 제공하며 기존의 계정을 불러온다.
 			},
 		},
 	}
-
+// 계정 관련 명령
 	accountCommand = cli.Command{
 		Name:     "account",
 		Usage:    "Manage accounts",
@@ -89,6 +91,8 @@ It is safe to transfer the entire directory or the individual keys therein
 between ethereum nodes by simply copying.
 
 Make sure you backup your keys regularly.`,
+// 계정을 관리하고 기존 계정을 리스팅하고, 개인키를 새 계정으로 임포트하며, 
+// 어카운트를 만들거나 갱신한다.
 		Subcommands: []cli.Command{
 			{
 				Name:   "list",
@@ -100,6 +104,7 @@ Make sure you backup your keys regularly.`,
 				},
 				Description: `
 Print a short summary of all accounts`,
+// 모든 어카운트의 요약정보를 프린트한다
 			},
 			{
 				Name:   "new",
@@ -125,6 +130,9 @@ For non-interactive use the passphrase can be specified with the --password flag
 Note, this is meant to be used for testing only, it is a bad idea to save your
 password to file or expose in any other way.
 `,
+// 새로운 계정을 생성하고 주소를 출력한다
+// 계정은 암호화된상태로 저장되며, 문장형 암호를 알려준다.
+// 계정을 언락하기 위해 문장형 암호를 기억해야한다
 			},
 			{
 				Name:      "update",
@@ -154,6 +162,9 @@ For non-interactive use the passphrase can be specified with the --password flag
 Since only one password can be given, only format update can be performed,
 changing your password is only possible interactively.
 `,
+//기존 계정을 갱신한다.
+// 해당 계정은 새버전의 암호화 타입으로 저장되며 새로운 암호문구와 걔정이 저장된 갱신된 파일을 알수있다.
+// 이 명령어로 유지보수가 중단된 버전의 계정을 새로운 형태로 마이레이션 할수 있다.
 			},
 			{
 				Name:   "import",
@@ -187,12 +198,16 @@ As you can directly copy your encrypted accounts to another ethereum instance,
 this import mechanism is not needed when you transfer an account between
 nodes.
 `,
+// 이 명령어는 키스토어 파일로부터 비암호화된 개인 키를 불러들이고 새로운 계정을 생성하고 주소를 출력한다.
+// 키파일은 헥사형태로 비암호화된 개인키를 가지고 있다고 가정한다.
 			},
 		},
 	}
 )
 
 func accountList(ctx *cli.Context) error {
+	// p2p 노드를 만들고 프로토콜을 준비한다.
+	// account manager만 설정된 노드가 리턴
 	stack, _ := makeConfigNode(ctx)
 	var index int
 	for _, wallet := range stack.AccountManager().Wallets() {
@@ -205,6 +220,7 @@ func accountList(ctx *cli.Context) error {
 }
 
 // tries unlocking the specified account a few times.
+// 계정을 3번 unlock시도한다
 func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
 	account, err := utils.MakeAddress(ks, address)
 	if err != nil {
@@ -235,6 +251,8 @@ func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i in
 
 // getPassPhrase retrieves the password associated with an account, either fetched
 // from a list of preloaded passphrases, or requested interactively from the user.
+// 이 함수는 계정과 관련하여 이미 로딩된 암호 구문의 리스트로 부터 암호를 검색하거나
+// 유저에게 요청한다
 func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) string {
 	// If a list of passwords was supplied, retrieve from them
 	if len(passwords) > 0 {
@@ -290,6 +308,7 @@ func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrErr
 }
 
 // accountCreate creates a new account into the keystore defined by the CLI flags.
+// command line interface flag에 정의된 키스토어에 새 계정을 생성한다.
 func accountCreate(ctx *cli.Context) error {
 	cfg := gethConfig{Node: defaultNodeConfig()}
 	// Load config file.
@@ -318,6 +337,7 @@ func accountCreate(ctx *cli.Context) error {
 
 // accountUpdate transitions an account from a previous format to the current
 // one, also providing the possibility to change the pass-phrase.
+// 오래된 포멧의 계정을 현재의 것으로 변환하고, 암호 구문 변화를 제공한다
 func accountUpdate(ctx *cli.Context) error {
 	if len(ctx.Args()) == 0 {
 		utils.Fatalf("No accounts specified to update")
@@ -335,6 +355,7 @@ func accountUpdate(ctx *cli.Context) error {
 	return nil
 }
 
+// 지갑을 불러들인다
 func importWallet(ctx *cli.Context) error {
 	keyfile := ctx.Args().First()
 	if len(keyfile) == 0 {
@@ -357,6 +378,7 @@ func importWallet(ctx *cli.Context) error {
 	return nil
 }
 
+// 계정을 불러들인다
 func accountImport(ctx *cli.Context) error {
 	keyfile := ctx.Args().First()
 	if len(keyfile) == 0 {

@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package les implements the Light Ethereum Subprotocol.
+// les 패키지는 라이트 이더리움 서브 프로토콜을 구현한다
 package les
 
 import (
@@ -79,42 +80,67 @@ type LightEthereum struct {
 
 	wg sync.WaitGroup
 }
-
+//geth에서 호출한 RegisterEthServcie내에서 les 객체의 New function으로 부터 시작
 func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
+	//체인디비를 생성한다.
+	//eth/backend.go 참조
+	//eth/db/chaindata 폴더에 level db를 새로 생성하거나 연결한다 
+	//그밑에 meter(db gauge)를 추가하여 3초마다 db성능을 monitoring 한다
 	chainDb, err := eth.CreateDB(ctx, config, "lightchaindata")
 	if err != nil {
 		return nil, err
 	}
+	//core/genesis.go 참조
+	//db안에서 제네시스 해시를 읽어서
+	//genesisblock이 있는지 확인하고, 없다면 main-net genesis block을 쓴다 
+	//있다면 어떤 config인지 확인하여 main net인지 test-net인지 확인
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
 	if _, isCompat := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !isCompat {
 		return nil, genesisErr
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
+	//les/peer.go 참조
+	//참여자를 관리하기 위한 피어셋 생성
 	peers := newPeerSet()
 	quitSync := make(chan struct{})
 
+	//light 이더리움 생성
 	leth := &LightEthereum{
 		config:           config,
 		chainConfig:      chainConfig,
 		chainDb:          chainDb,
 		eventMux:         ctx.EventMux,
 		peers:            peers,
+		//distributor.go
 		reqDist:          newRequestDistributor(peers, quitSync),
 		accountManager:   ctx.AccountManager,
+		//TODO: 합의엔진: Ethash
 		engine:           eth.CreateConsensusEngine(ctx, &config.Ethash, chainConfig, chainDb),
 		shutdownChan:     make(chan bool),
 		networkId:        config.NetworkId,
+		//eth/handler.go
+		//집합에 포함되는지 판단하기 위한 블룸 인덱서
 		bloomRequests:    make(chan chan *bloombits.Retrieval),
 		bloomIndexer:     eth.NewBloomIndexer(chainDb, light.BloomTrieFrequency),
 		chtIndexer:       light.NewChtIndexer(chainDb, true),
 		bloomTrieIndexer: light.NewBloomTrieIndexer(chainDb, true),
 	}
-
+	//txrelay.go참조
+	//피어들에게 notify할 릴레이 채널 생성
 	leth.relay = NewLesTxRelay(peers, leth.reqDist)
+	//serverpool.go참조
+	//서버풀은 이미 알려졌거나 새롭게 발견된 라이트 서버 노드를 저장한다. 
 	leth.serverPool = newServerPool(chainDb, quitSync, &leth.wg)
+	//검색매니져는 요청분산자의 탑 레이어로서
+	//request ID에 대응하여 응답하고, 타임아웃과 재전송을 관리한다.
 	leth.retriever = newRetrieveManager(peers, leth.reqDist, leth.serverPool)
+	//les/odr.go
+	//on demenad retrieval 
+	//light.OdrBackend
 	leth.odr = NewLesOdr(chainDb, leth.chtIndexer, leth.bloomTrieIndexer, leth.bloomIndexer, leth.retriever)
+	//light/lightchain.go
+	//라이트 체인을 받아온다.(내부적으로 체인을 검증함)
 	if leth.blockchain, err = light.NewLightChain(leth.odr, leth.chainConfig, leth.engine); err != nil {
 		return nil, err
 	}
@@ -126,7 +152,12 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
 
+	//light/txpool.go
+	//트렌젝션 풀생성
 	leth.txPool = light.NewTxPool(leth.chainConfig, leth.blockchain, leth.relay)
+	//hander.go
+	//이더리움 서브 프로토콜 메니져 생성
+	//이 매니져는 이더리움 네트워크와 호환 가능한 피어들을 관리한다 - quick sync 등등
 	if leth.protocolManager, err = NewProtocolManager(leth.chainConfig, true, ClientProtocolVersions, config.NetworkId, leth.eventMux, leth.engine, leth.peers, leth.blockchain, nil, chainDb, leth.odr, leth.relay, quitSync, &leth.wg); err != nil {
 		return nil, err
 	}
@@ -135,6 +166,8 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.GasPrice
 	}
+	//eth/gasprice/gasprice.go
+	//새로운 오라클 생성
 	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
 	return leth, nil
 }
@@ -221,13 +254,26 @@ func (s *LightEthereum) Protocols() []p2p.Protocol {
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
+// geth에서 서비스 스타트할때 les 서비스가 실행될것이다.
 func (s *LightEthereum) Start(srvr *p2p.Server) error {
+	//eth/bloombit.go
+	//bloom bit database 검색
 	s.startBloomHandlers()
 	log.Warn("Light client mode is an experimental feature")
+
+	//internal/ethapi/api.go
 	s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.networkId)
 	// clients are searching for the first advertised protocol in the list
 	protocolVersion := AdvertiseProtocolVersions[0]
+	//light/txpool.go
+	leth.txPool = light.NewTxPool(leth.chainConfig, leth.blockchain, leth.relay)
+	//serverpool.go참조
+	//서버풀 스타트
+	//이안에서 DiscV5 프로토콜을 통해 RLPx노드들을 찾는다
 	s.serverPool.start(srvr, lesTopic(s.blockchain.Genesis().Hash(), protocolVersion))
+	//hander.go
+	//프로토콜 매니저 스타트
+	//내부적으로 syncer가 돌면서 블럭과 해시를 동기화함
 	s.protocolManager.Start(s.config.LightPeers)
 	return nil
 }

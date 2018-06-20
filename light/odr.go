@@ -16,6 +16,8 @@
 
 // Package light implements on-demand retrieval capable state and chain objects
 // for the Ethereum Light Client.
+
+// light 패키지는 이더리움 라이트 클라이언트를 위한 상태와 체인오브젝트에 대한 반환을 구현한다
 package light
 
 import (

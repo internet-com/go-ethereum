@@ -23,6 +23,8 @@ import (
 
 // GasPool tracks the amount of gas available during execution of the transactions
 // in a block. The zero value is a pool with zero gas available.
+// 가스풀은 블록상의 트렌젝션이 실행되는동안 가용가능한 가스의상태를 
+// 관찰한다 
 type GasPool uint64
 
 // AddGas makes gas available for execution.

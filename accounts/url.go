@@ -24,6 +24,7 @@ import (
 )
 
 // URL represents the canonical identification URL of a wallet or account.
+// URL은 지갑이나 계정의 캐노니컬한 식별 url을 나타낸다
 //
 // It is a simplified version of url.URL, with the important limitations (which
 // are considered features here) that it contains value-copyable components only,

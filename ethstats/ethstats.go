@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package ethstats implements the network stats reporting service.
+// ethstats 패키지는 네트워크 상테 보고 서비스를 구현한다
 package ethstats
 
 import (
@@ -59,6 +60,8 @@ const (
 type txPool interface {
 	// SubscribeNewTxsEvent should return an event subscription of
 	// NewTxsEvent and send events to the given channel.
+	// SubscribeewTxsEvent 인터페이스는 NewTxsEvent의 구독과 
+	// 주어진 채널로의 전송을 반환해야한다
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 }
 
@@ -68,6 +71,8 @@ type blockChain interface {
 
 // Service implements an Ethereum netstats reporting daemon that pushes local
 // chain statistics up to a monitoring server.
+// 서비스 구조체는 이더리움의 네트워크 상태 보고 데몬을 구현한다.
+// 이 데몬은 로컬 체인의 상태를 모니터링 서버로 전송한다
 type Service struct {
 	server *p2p.Server        // Peer-to-peer server to retrieve networking infos
 	eth    *eth.Ethereum      // Full Ethereum service if monitoring a full node
@@ -83,6 +88,7 @@ type Service struct {
 }
 
 // New returns a monitoring service ready for stats reporting.
+// ethstat패키지의 New함수는 상태 보고를 위한 모니터링 서비스를 준비한다
 func New(url string, ethServ *eth.Ethereum, lesServ *les.LightEthereum) (*Service, error) {
 	// Parse the netstats connection url
 	re := regexp.MustCompile("([^:@]*)(:([^@]*))?@(.+)")
@@ -111,15 +117,24 @@ func New(url string, ethServ *eth.Ethereum, lesServ *les.LightEthereum) (*Servic
 
 // Protocols implements node.Service, returning the P2P network protocols used
 // by the stats service (nil as it doesn't use the devp2p overlay network).
+// Protocols 함수는 node.Survice를 구현하고 stats 서비스에서
+// 이용되는 p2p 네트워크 프로토콜을 리턴한다
+// nil 리턴시 노드가 devp2p오버레이 네트워크를 사용하지 않는 것이다
 func (s *Service) Protocols() []p2p.Protocol { return nil }
 
 // APIs implements node.Service, returning the RPC API endpoints provided by the
 // stats service (nil as it doesn't provide any user callable APIs).
+// APIs 함수는 node.Service를 구현하고 stats 서비스에 제공되는 
+// RPC API 엔드포인트를 리턴한다
 func (s *Service) APIs() []rpc.API { return nil }
 
 // Start implements node.Service, starting up the monitoring and reporting daemon.
+// start 함수는 노드의 서비스 구현한다. 모니터링/레포팅 데몬을 실행시킨다
+// 데몬은 netstat서버에 접속하려고 노력하고, 체인 이벤트를 레포팅한다.
 func (s *Service) Start(server *p2p.Server) error {
+	//해당 서비스의 서버에 인자로 전달된 서버를 등록함
 	s.server = server
+// 이 함수는 netstat서버에 접속하려고 노력하고, 체인 이벤트를 레포팅한다.
 	go s.loop()
 
 	log.Info("Stats daemon started")
@@ -134,6 +149,7 @@ func (s *Service) Stop() error {
 
 // loop keeps trying to connect to the netstats server, reporting chain events
 // until termination.
+// 이 함수는 netstat서버에 접속하려고 노력하고, 체인 이벤트를 레포팅한다.
 func (s *Service) loop() {
 	// Subscribe to chain events to execute updates on
 	var blockchain blockChain
@@ -146,10 +162,14 @@ func (s *Service) loop() {
 		txpool = s.les.TxPool()
 	}
 
+	// 체인 헤드 이벤트를 구독함
 	chainHeadCh := make(chan core.ChainHeadEvent, chainHeadChanSize)
 	headSub := blockchain.SubscribeChainHeadEvent(chainHeadCh)
 	defer headSub.Unsubscribe()
 
+	// 트렌젝션 이벤트를 구독함
+	// 채널을 생성하고 구독함수에 전달한 후
+	// 해당 채널로 이벤트를 받는 구조
 	txEventCh := make(chan core.NewTxsEvent, txChanSize)
 	txSub := txpool.SubscribeNewTxsEvent(txEventCh)
 	defer txSub.Unsubscribe()
@@ -277,6 +297,9 @@ func (s *Service) loop() {
 // from the network socket. If any of them match an active request, it forwards
 // it, if they themselves are requests it initiates a reply, and lastly it drops
 // unknown packets.
+// readLoop는 연결이 살아있는동안 반복하며 네트워크 소켓으로 부터 데이터 패킷을 반환한다.
+// 수신한 데이터가 활성화된 요구에 맞는다면, 데이터를 포워딩한다.
+// 만약 자기가 등록한 요구사항이라면 응답을 초기화하고 버린다
 func (s *Service) readLoop(conn *websocket.Conn) {
 	// If the read loop exists, close the connection
 	defer conn.Close()
@@ -347,6 +370,7 @@ func (s *Service) readLoop(conn *websocket.Conn) {
 
 // nodeInfo is the collection of metainformation about a node that is displayed
 // on the monitoring page.
+// nodeInfo는 모니터링 페이지에 보여질 노드에 관한 메타정보의 모음이다
 type nodeInfo struct {
 	Name     string `json:"name"`
 	Node     string `json:"node"`
@@ -361,6 +385,7 @@ type nodeInfo struct {
 }
 
 // authMsg is the authentication infos needed to login to a monitoring server.
+// authMsg는 모니터링 서버에 로그인 하기위한 인증정보들이다
 type authMsg struct {
 	Id     string   `json:"id"`
 	Info   nodeInfo `json:"info"`
@@ -368,6 +393,7 @@ type authMsg struct {
 }
 
 // login tries to authorize the client at the remote server.
+// login는 원격서버의 클라이언트 인증을 위해 사용된다
 func (s *Service) login(conn *websocket.Conn) error {
 	// Construct and send the login authentication
 	infos := s.server.NodeInfo()

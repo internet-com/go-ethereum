@@ -64,6 +64,7 @@ func (c *Cache) Contains(key interface{}) bool {
 
 // Returns the key value (or undefined if not found) without updating
 // the "recently used"-ness of the key.
+// 키를 최근 사용되지 않은 상태로 리턴한다
 func (c *Cache) Peek(key interface{}) (interface{}, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()

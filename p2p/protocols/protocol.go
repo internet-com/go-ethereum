@@ -184,6 +184,9 @@ type Peer struct {
 // this constructor is called by the p2p.Protocol#Run function
 // the first two arguments are the arguments passed to p2p.Protocol.Run function
 // the third argument is the Spec describing the protocol
+// NewPeer는 새로운 피어를 생성한다.
+// 이 생성자는 p2p.Protocol#Run 함수에 의해 실행된다.
+// 첫 두 인자는 호출한 함수에서 받은 인자이며, 세번째 인자는 프로토콜을 나타내는 스펙이다
 func NewPeer(p *p2p.Peer, rw p2p.MsgReadWriter, spec *Spec) *Peer {
 	return &Peer{
 		Peer: p,
@@ -216,6 +219,9 @@ func (p *Peer) Drop(err error) {
 // message off to the peer
 // this low level call will be wrapped by libraries providing routed or broadcast sends
 // but often just used to forward and push messages to directly connected peers
+// Send는 메시지를 받아서 RLP로 인코딩하고 올바른 메시지 코드를 찾아 피어들에게 전송한다
+// 이 저수준 콜은 라우팅과 브로드캐스팅 전송을 지원하는 라이브러리로 포장될 얘정이지만
+// 때때로 단순히 직접연결된 피어들에게 메지시를 전송하는 용도로 쓰인다
 func (p *Peer) Send(msg interface{}) error {
 	code, found := p.spec.GetCode(msg)
 	if !found {

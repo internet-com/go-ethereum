@@ -27,6 +27,8 @@ import (
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
+// 체인 컨텍스트는 트렌젝션 프로세싱에 사용될 헤더와 합의파라미터들을
+// 현재의 블록체인으로 부터 반환한다.
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
@@ -86,11 +88,13 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 
 // CanTransfer checks wether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
+// 계정의 잔고가 충분한지 체크한다
 func CanTransfer(db vm.StateDB, addr common.Address, amount *big.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
+// 이함수는 주어진 DB를 이용하여 전송자의 잔고에서 전송수량을 빼고, 수신자의 잔고에 수량을 더한다
 func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)

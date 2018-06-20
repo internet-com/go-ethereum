@@ -46,6 +46,9 @@ var (
 // LightChain represents a canonical chain that by default only handles block
 // headers, downloading block bodies and receipts on demand through an ODR
 // interface. It only does header validation during chain insertion.
+// 라이트 체인은 기본적으로 캐노니컬 채인을 나타내지만 헤더블록만을 관리하고
+// ODR 인터페이스를 통해 블록보디와 영수증을 온디멘드로 다운로드 한다.
+// 체인의 삽입은 헤더 검증만 이루어 진다
 type LightChain struct {
 	hc            *core.HeaderChain
 	chainDb       ethdb.Database
@@ -75,7 +78,10 @@ type LightChain struct {
 // NewLightChain returns a fully initialised light chain using information
 // available in the database. It initialises the default Ethereum header
 // validator.
+// DB상의 사용가능한 정보를 활용하여 완전히 초기화된 라이트 체인을 리턴한다.
+// 기본 이더리움 헤더 검증자를 초기화 한다
 func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.Engine) (*LightChain, error) {
+// Least Recently Used
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
@@ -101,10 +107,12 @@ func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.
 	if cp, ok := trustedCheckpoints[bc.genesisBlock.Hash()]; ok {
 		bc.addTrustedCheckpoint(cp)
 	}
+	//이더리움은 스테이트 머신이므로 마지막 스테이트를 가지고 온다.
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
 	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
+	//chain 검증
 	for hash := range core.BadHashes {
 		if header := bc.GetHeaderByHash(hash); header != nil {
 			log.Error("Found bad hash, rewinding chain", "number", header.Number, "hash", header.ParentHash)

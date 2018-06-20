@@ -44,6 +44,7 @@ const (
 
 // PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
 // about a connected peer.
+// 이더리움 서브 프로토콜의 메타데이터에 대한 짧은 요약을 제공한다
 type PeerInfo struct {
 	Version    int      `json:"version"`    // Ethereum protocol version negotiated
 	Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain
@@ -67,6 +68,7 @@ type peer struct {
 	knownBlocks *set.Set // Set of block hashes known to be known by this peer
 }
 
+//
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	id := p.ID()
 
@@ -132,15 +134,24 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
+// geth cli에서 transaction을 보낼때 사용하는 함수
+// eth.SendTransaction(from,to,value) 형태로 사용한다
+// 트렌젝션을 피어로 전송한다
 func (p *peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
+		// 내가 알고있는 트렌젝션 세트에 보낼 트렌젝션의 해시를 추가함
 		p.knownTxs.Add(tx.Hash())
 	}
+	//TxMsg는 이더리움 프로토콜의 메시지 코드
+	// 트렌젝션들을 RLP로 인코딩하고, 인코딩된 메시지를 보낸다
+	// 기본 메시지 리드라이터로 메시지를 쓰고, message sent 메시지를 feed에 씀으로서
+	// 이벤트를 구독중인 피어에게 브로드 캐스팅한다
 	return p2p.Send(p.rw, TxMsg, txs)
 }
 
 // SendNewBlockHashes announces the availability of a number of blocks through
 // a hash notification.
+// SendNewBlockHashes함수는 해시 알람을 통해 사용가능한 블록의 수를 어나운스 한다
 func (p *peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
 	for _, hash := range hashes {
 		p.knownBlocks.Add(hash)
@@ -230,6 +241,8 @@ func (p *peer) RequestReceipts(hashes []common.Hash) error {
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
+// 핸드세이크는 이더리움 프로토콜의 핸드쉐이크를 실행한다.
+// 버전 번호와 네트워크ID, 난이도, 헤드와 제네시스 블록을 협상한다
 func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
@@ -314,6 +327,8 @@ func newPeerSet() *peerSet {
 
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known.
+// Register함수는 새로운 피어를 워킹셋에 추가하거나, 
+// 이미 알려진 피어라면 에러를 반환한다
 func (ps *peerSet) Register(p *peer) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
@@ -374,6 +389,8 @@ func (ps *peerSet) PeersWithoutBlock(hash common.Hash) []*peer {
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
+// PeersWithoutTx는 그들의 알려진 해시 세트안에 
+// 주어진 트렌젝션이 없는 피어들의 리스트를 반환한다
 func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
@@ -388,6 +405,7 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 }
 
 // BestPeer retrieves the known peer with the currently highest total difficulty.
+// BestPeer함수는 현재가지 가장 높은 TD를 가진 알려진 피어를 반환
 func (ps *peerSet) BestPeer() *peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()

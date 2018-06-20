@@ -6,6 +6,7 @@ go-metrics
 Go port of Coda Hale's Metrics library: <https://github.com/dropwizard/metrics>.
 
 Documentation: <http://godoc.org/github.com/rcrowley/go-metrics>.
+메트릭스는중요한 컴포넌트의 동작을 측정하는 방법을 제공하는 툴킷이다
 
 Usage
 -----

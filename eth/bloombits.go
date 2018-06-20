@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//블룸필터는 통계적 특성을 가진 자료구조로서,
+//데이터를 줄여서 공간을 효율적으로 빠르게 검색한다
 package eth
 
 import (
@@ -49,6 +51,8 @@ const (
 
 // startBloomHandlers starts a batch of goroutines to accept bloom bit database
 // retrievals from possibly a range of filters and serving the data to satisfy.
+// startBloomHnadlers 함수는 블룸빗 데이터 베이스를 수신하기위해 다량의 고루틴을 시작한다.
+// 가능한 영역의 필터들을 반환하거나 만족시키기 위한 데이터를 제공한다
 func (eth *Ethereum) startBloomHandlers() {
 	for i := 0; i < bloomServiceThreads; i++ {
 		go func() {

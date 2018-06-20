@@ -2,6 +2,7 @@ ethkey
 ======
 
 ethkey is a simple command-line tool for working with Ethereum keyfiles.
+ethkey는 이더리움 키파일 제어를 위한 cli 툴이다
 
 
 # Usage

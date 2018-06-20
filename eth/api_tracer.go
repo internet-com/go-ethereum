@@ -125,6 +125,8 @@ func (api *PrivateDebugAPI) TraceChain(ctx context.Context, start, end rpc.Block
 // traceChain configures a new tracer according to the provided configuration, and
 // executes all the transactions contained within. The return value will be one item
 // per transaction, dependent on the requestd tracer.
+// 이함수는 제공된 설정에따라 새로운 트레이서를 설정하고, 포함된 모든 트렌젝션을 실행한다.
+// 반환값은 요구된 트레이서에 따라 트렉젝션당 하나의 아이템이다
 func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Block, config *TraceConfig) (*rpc.Subscription, error) {
 	// Tracing a chain is a **long** operation, only do with subscriptions
 	notifier, supported := rpc.NotifierFromContext(ctx)
@@ -264,6 +266,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				break
 			}
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
+			// 블록을 동시에 동작하는 트레이서들에게 보낸다.
 			if number > origin {
 				txs := block.Transactions()
 

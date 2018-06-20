@@ -400,6 +400,7 @@ type Ethash struct {
 	// Mining related fields
 	rand     *rand.Rand    // Properly seeded random source for nonces
 	threads  int           // Number of threads to mine on if mining
+	// 마이닝 파라미터 변경을 위한 노티채널
 	update   chan struct{} // Notification channel to update mining parameters
 	hashrate metrics.Meter // Meter tracking the average hashrate
 
@@ -412,6 +413,7 @@ type Ethash struct {
 }
 
 // New creates a full sized ethash PoW scheme.
+// 전체 크기의 ethash pow 스킴을 생성한다
 func New(config Config) *Ethash {
 	if config.CachesInMem <= 0 {
 		log.Warn("One ethash cache must always be in memory", "requested", config.CachesInMem)
@@ -542,6 +544,10 @@ func (ethash *Ethash) Threads() int {
 // specified, the miner will use all cores of the machine. Setting a thread
 // count below zero is allowed and will cause the miner to idle, without any
 // work being done.
+// SetThreads 함수는 현재 활성화된 마이닝 스레드의 넘버를 업데이트 한다.
+// 이 함수는 마이닝을 시작하지 않고, 스레드 카운트만 변경시킨다.
+// 0이할당되면 마이너는 머신의 모든 코어를 사용한다.
+// 영보다 작은 값이 할당되면 마이너들은 아무일도 하지 않고 쉬게된다
 func (ethash *Ethash) SetThreads(threads int) {
 	ethash.lock.Lock()
 	defer ethash.lock.Unlock()

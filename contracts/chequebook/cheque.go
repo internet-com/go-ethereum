@@ -20,6 +20,7 @@
 // issuing, receiving, verifying cheques in ether; (auto)cashing cheques in ether
 // as well as (auto)depositing ether to the chequebook contract.
 package chequebook
+// chequebook 패키지 chequebook 이더리음 스마트 계약을 포괄한다 
 
 //go:generate abigen --sol contract/chequebook.sol --exc contract/mortal.sol:mortal,contract/owned.sol:owned --pkg contract --out contract/chequebook.go
 //go:generate go run ./gencode.go

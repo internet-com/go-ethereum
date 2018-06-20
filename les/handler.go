@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package les implements the Light Ethereum Subprotocol.
+// les 패키지는 라이트 이더리움 서브프로토콜을 구현한다
 package les
 
 import (
@@ -222,6 +223,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	if pm.lightSync {
+		//eth/sync.go
 		go pm.syncer()
 	} else {
 		go func() {

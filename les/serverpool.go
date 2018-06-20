@@ -90,6 +90,8 @@ const (
 // serverPool implements a pool for storing and selecting newly discovered and already
 // known light server nodes. It received discovered nodes, stores statistics about
 // known nodes and takes care of always having enough good quality servers connected.
+//서버풀은 이미 알려졌거나 새롭게 발견된 라이트 서버 노드를 저장한다. 
+// 새롭게 발견된 라이트 서버 노드를 수신하고, 기존 노드들의 현황을 저장하며 언제나 접속하기 충분히 좋은 서버를 고려한다
 type serverPool struct {
 	db     ethdb.Database
 	dbKey  []byte

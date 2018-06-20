@@ -148,6 +148,7 @@ func NewEventSystem(mux *event.TypeMux, backend Backend, lightMode bool) *EventS
 }
 
 // Subscription is created when the client registers itself for a particular event.
+// 클라이언트가 특정이벤트에 자신을 등록함
 type Subscription struct {
 	ID        rpc.ID
 	f         *subscription

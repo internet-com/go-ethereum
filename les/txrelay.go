@@ -46,6 +46,7 @@ func NewLesTxRelay(ps *peerSet, reqDist *requestDistributor) *LesTxRelay {
 		ps:        ps,
 		reqDist:   reqDist,
 	}
+	//peer.go
 	ps.notify(r)
 	return r
 }

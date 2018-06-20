@@ -25,6 +25,7 @@ import (
 // DAOForkBlockExtra is the block header extra-data field to set for the DAO fork
 // point and a number of consecutive blocks to allow fast/light syncers to correctly
 // pick the side they want  ("dao-hard-fork").
+// DAO 하드포크 관련
 var DAOForkBlockExtra = common.FromHex("0x64616f2d686172642d666f726b")
 
 // DAOForkExtraRange is the number of consecutive blocks from the DAO fork point

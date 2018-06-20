@@ -18,6 +18,7 @@
 //
 // Keys are stored as encrypted JSON files according to the Web3 Secret Storage specification.
 // See https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition for more information.
+// 키들은 web3 비밀지갑저장 스펙으로 암호화된 json파일로 저장된다 
 package keystore
 
 import (
@@ -56,6 +57,10 @@ var KeyStoreScheme = "keystore"
 const walletRefreshCycle = 3 * time.Second
 
 // KeyStore manages a key storage directory on disk.
+// 디스크상의 키스토어 저장소(폴더)를 곤리한다
+// backend inerface 구현하고 있다(wallets)
+// 지갑추가나 제거를 알릴 이벤트피드
+// 현재 구독중인 리스너들을 트렉킹한다
 type KeyStore struct {
 	storage  keyStore                     // Storage backend, might be cleartext or encrypted
 	cache    *accountCache                // In-memory account cache over the filesystem storage
@@ -76,6 +81,7 @@ type unlocked struct {
 }
 
 // NewKeyStore creates a keystore for the given directory.
+// 위에 KeyStore 구조체 참조
 func NewKeyStore(keydir string, scryptN, scryptP int) *KeyStore {
 	keydir, _ = filepath.Abs(keydir)
 	ks := &KeyStore{storage: &keyStorePassphrase{keydir, scryptN, scryptP}}
@@ -131,6 +137,9 @@ func (ks *KeyStore) Wallets() []accounts.Wallet {
 
 // refreshWallets retrieves the current account list and based on that does any
 // necessary wallet refreshes.
+// 리프리시월렛 함수는 현재 계정의 리스트를 검색하고 
+// 그것을 기반으로 필요한 지갑의 리프레시를 한다 (search drop/new)
+// 이벤트를 키 스토어의 업데이트 피드로 보낸다
 func (ks *KeyStore) refreshWallets() {
 	// Retrieve the current list of accounts
 	ks.mu.Lock()
@@ -169,6 +178,7 @@ func (ks *KeyStore) refreshWallets() {
 	ks.mu.Unlock()
 
 	// Fire all wallet events and return
+	// 이벤트를 키 스토어의 업데이트 피드로 보낸다
 	for _, event := range events {
 		ks.updateFeed.Send(event)
 	}
@@ -176,12 +186,15 @@ func (ks *KeyStore) refreshWallets() {
 
 // Subscribe implements accounts.Backend, creating an async subscription to
 // receive notifications on the addition or removal of keystore wallets.
+// 계정의 백엔드를 구현하며, 키스토어 지갑의 추가/삭제에 대한 알람을 
+// 받기 위해 비동기 구독을 생성한다
 func (ks *KeyStore) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
 	// We need the mutex to reliably start/stop the update loop
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
 
 	// Subscribe the caller and track the subscriber count
+	// 해당 구독을 스코프로 관리함 ( 스코프는 여러 구독을 한번에 관리하는 래퍼타입)
 	sub := ks.updateScope.Track(ks.updateFeed.Subscribe(sink))
 
 	// Subscribers require an active notification loop, start it
@@ -197,6 +210,9 @@ func (ks *KeyStore) Subscribe(sink chan<- accounts.WalletEvent) event.Subscripti
 // account change events from the underlying account cache, and also periodically
 // forces a manual refresh (only triggers for systems where the filesystem notifier
 // is not running).
+// 키스토어의 업데이터 함수는 키스토어에 저장된 지갑들을 관리하고 지갑 이벤트를 발생시킨다.
+// 이 함수는 어카운트 캐시로부터 계정의 변경을 감지하고 
+// 주기적으로 리프레시한다(파일시스템 노티가 안일어나는 경우에)
 func (ks *KeyStore) updater() {
 	for {
 		// Wait for an account update or a refresh timeout
@@ -205,6 +221,9 @@ func (ks *KeyStore) updater() {
 		case <-time.After(walletRefreshCycle):
 		}
 		// Run the wallet refresher
+		// 리프리시월렛 함수는 현재 계정의 리스트를 검색하고 
+		// 그것을 기반으로 필요한 지갑의 리프레시를 한다 (search drop/new)
+		// 이벤트를 키 스토어의 업데이트 피드로 보낸다
 		ks.refreshWallets()
 
 		// If all our subscribers left, stop the updater
@@ -254,6 +273,7 @@ func (ks *KeyStore) Delete(a accounts.Account, passphrase string) error {
 
 // SignHash calculates a ECDSA signature for the given hash. The produced
 // signature is in the [R || S || V] format where V is 0 or 1.
+// SignHash 함수는 주어진 해시에 대해 ECDSA 사인을 계산한다
 func (ks *KeyStore) SignHash(a accounts.Account, hash []byte) ([]byte, error) {
 	// Look up the key to sign with and abort if it cannot be found
 	ks.mu.RLock()
@@ -268,6 +288,7 @@ func (ks *KeyStore) SignHash(a accounts.Account, hash []byte) ([]byte, error) {
 }
 
 // SignTx signs the given transaction with the requested account.
+// SignTx 함수는 요구된 계정으로 주어진 트렌젝션에 사인한다
 func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Look up the key to sign with and abort if it cannot be found
 	ks.mu.RLock()
@@ -277,7 +298,7 @@ func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *b
 	if !found {
 		return nil, ErrLocked
 	}
-	// Depending on the presence of the chain ID, sign with EIP155 or homestead
+	// Depending on the presence of the chain ID, sign with EIP156 or homestead
 	if chainID != nil {
 		return types.SignTx(tx, types.NewEIP155Signer(chainID), unlockedKey.PrivateKey)
 	}

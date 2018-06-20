@@ -21,6 +21,8 @@
 // far more memory than necessary, but it is easy to see that it is correct.
 // It can be used for generating test cases for optimized implementations.
 // see testBMTHasherCorrectness function in bmt_test.go
+// 이 구현은 어떠한 이득도 제공하지않지만 올바르게 동작하는지 쉽게 볼 수있다.
+// 구현의 최적화를 위해 테스트를 생성하는데 사용 될 수있다.
 package bmt
 
 import (

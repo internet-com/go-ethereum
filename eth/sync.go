@@ -43,6 +43,7 @@ type txsync struct {
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
+// 이 함수는 주어진 피어들에게 현재 펜딩중인 트렌젝션을 모두 전송한다
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	var txs types.Transactions
 	pending, _ := pm.txpool.Pending()
@@ -62,6 +63,9 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 // connection. When a new peer appears, we relay all currently pending
 // transactions. In order to minimise egress bandwidth usage, we send
 // the transactions in small packs to one peer at a time.
+// 이 함수는 새로운 커넥션에 대한 초기 트렌젝션을 관리한다
+// 새로운 피어가 나타나면 현재까지 펜딩된 트렌젝션을 릴레이 한다
+// 네트워크 밴드위스 관리를 위해 각 피어에 트렌젝션을 쪼개서 보낸다
 func (pm *ProtocolManager) txsyncLoop() {
 	var (
 		pending = make(map[discover.NodeID]*txsync)
@@ -131,6 +135,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 
 // syncer is responsible for periodically synchronising with the network, both
 // downloading hashes and blocks as well as handling the announcement handler.
+//주기적으로 네트워크와 동기화 하고, 해시와 블록을 다운로드한다
 func (pm *ProtocolManager) syncer() {
 	// Start and ensure cleanup of sync mechanisms
 	pm.fetcher.Start()

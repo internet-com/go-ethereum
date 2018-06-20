@@ -34,6 +34,8 @@
 //     $ p2psim node connect node01 node02
 //     Connected node01 to node02
 //
+// p2psim은 http api를 시뮬레이션 할수 있는 cli를 제공한다
+// 2개의 노드를 생성하고 첫노드가 두번째 노드에 접속하는 샘플이다
 package main
 
 import (

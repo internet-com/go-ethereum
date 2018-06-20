@@ -144,6 +144,9 @@ func (m *Matcher) addScheduler(idx uint) {
 // Start starts the matching process and returns a stream of bloom matches in
 // a given range of blocks. If there are no more matches in the range, the result
 // channel is closed.
+// Start함수는 매칭을 처리하고 주어진 블록안에서 
+// 매칭되는 연속된 블록을 반환한다
+// 만약 더이상 매칭이되지 않는다면 결과 채널이 닫힌것이다
 func (m *Matcher) Start(ctx context.Context, begin, end uint64, results chan uint64) (*MatcherSession, error) {
 	// Make sure we're not creating concurrent sessions
 	if atomic.SwapUint32(&m.running, 1) == 1 {

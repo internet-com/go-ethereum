@@ -31,6 +31,7 @@ import (
 // state from one point to another.
 //
 // StateProcessor implements Processor.
+// 상태 처리자는 기본 처리자로서, 한 지점에서 다른 지점으로의 state의 변환을 관리한다
 type StateProcessor struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
@@ -53,6 +54,10 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
+// 이 함수는 이더리움 룰에 따라 state db를 이용한 트렌젝션 메시지 실행과
+// 실행에 따른 코인베이스의 보상과 엉클블록을 처리한 것에 대한 보상을 처리한다
+// 이 하무는 영수증과 프로세스에 사용된 가스사용량의 누적로그를 리턴한다
+// 가스때문에 실행에 실패한 트렌젝션은 에러를 리턴한다
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	var (
 		receipts types.Receipts
@@ -85,6 +90,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
+/*
+이 함수는 주어진 스테이트 DB에 트렌젝션을 적용하고,
+인자로 전달된 파라미터를 사용하기 위한 함수이다.
+트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
+*/
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {

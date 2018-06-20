@@ -82,6 +82,9 @@ type MsgWriter interface {
 // MsgReadWriter provides reading and writing of encoded messages.
 // Implementations should ensure that ReadMsg and WriteMsg can be
 // called simultaneously from multiple goroutines.
+// MsgReadWriter 인터페이스는 암호화된 메시지의 읽기/쓰기를 제공한다
+// 구현은 ReadMsg/WriteMsg가 여러 고루틴에서 동시에 
+// 수행될수 있음을 보장해야 한다
 type MsgReadWriter interface {
 	MsgReader
 	MsgWriter
@@ -89,6 +92,7 @@ type MsgReadWriter interface {
 
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
+// 트렌젝션들을 RLP로 인코딩하고, 인코딩된 메시지를 보낸다
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
@@ -106,6 +110,7 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 //
 //    [e1, e2, e3]
 //
+// SendItems함수는 주어진 코드와 데이터를 RLP로 쓴다
 func SendItems(w MsgWriter, msgcode uint64, elems ...interface{}) error {
 	return Send(w, msgcode, elems)
 }
@@ -162,6 +167,7 @@ func MsgPipe() (*MsgPipeRW, *MsgPipeRW) {
 var ErrPipeClosed = errors.New("p2p: read or write on closed message pipe")
 
 // MsgPipeRW is an endpoint of a MsgReadWriter pipe.
+// MsgPipeRW는 MsgReadWriter파이프의 엔드포인트이다
 type MsgPipeRW struct {
 	w       chan<- Msg
 	r       <-chan Msg
@@ -249,6 +255,7 @@ func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 
 // msgEventer wraps a MsgReadWriter and sends events whenever a message is sent
 // or received
+// msgEventer는 MsgReadWriter를 포함하며 메시지 수신/발신에 관계업이 이벤트를 전송한다
 type msgEventer struct {
 	MsgReadWriter
 
@@ -287,6 +294,8 @@ func (ev *msgEventer) ReadMsg() (Msg, error) {
 
 // WriteMsg writes a message to the underlying MsgReadWriter and emits a
 // "message sent" event
+// 이 함수는 주어진 메시지 리드라이터로 메시지를 쓰고, message sent 메시지를 feed에 씀으로서
+// 이벤트를 구독중인 피어에게 브로드 캐스팅한다
 func (ev *msgEventer) WriteMsg(msg Msg) error {
 	err := ev.MsgReadWriter.WriteMsg(msg)
 	if err != nil {

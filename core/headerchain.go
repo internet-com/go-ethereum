@@ -47,6 +47,9 @@ const (
 // a part of either structure.
 // It is not thread safe either, the encapsulating chain structures should do
 // the necessary mutex locking/unlocking.
+// 헤더체인은 코어블록체인과 라이트 블록체인이 공유하는 기본 블록 헤더 체인의 로직이다
+// 혼자 사용할수 없으며 각 구조에 일부로서 사용가능하다
+// 쓰레드 세이프 하지 않으니 이를 포함한 채인 구조는 뮤텍스의 락/언라을 구현해야한다
 type HeaderChain struct {
 	config *params.ChainConfig
 
@@ -70,6 +73,10 @@ type HeaderChain struct {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
+// 이 함수는 새로운 헤더체인 구조체를 생성한다.
+// getValidator는 반드시 부모의 검증자를 반환해야하며
+// procInterrupt는 부모의 인터럽트 세마포어를 가리킨다
+// wg는 부모의 종료 대기 그룹을 가리킨다
 func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	tdCache, _ := lru.New(tdCacheLimit)
@@ -131,6 +138,8 @@ func (hc *HeaderChain) GetBlockNumber(hash common.Hash) *uint64 {
 // without the real blocks. Hence, writing headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
+// 이 함수는 이미 알려진 부모를 가진 헤더를 로컬 블록체인에 쓴다. 만약 새롭게 삽입된 헤더의 토탈디피컬티가
+// 현재 알려진 TD보다 커진다면 캐노니컬 체인이 재구성된다
 func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, err error) {
 	// Cache some values to prevent constant recalculation
 	var (
@@ -256,6 +265,9 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 // should be done or not. The reason behind the optional check is because some
 // of the header retrieval mechanisms already need to verfy nonces, as well as
 // because nonces can be verified sparsely, not needing to check each.
+// 주어진 헤더를 로컬 체인에 삽입하며 체인의 재구성을 유도할수도 있다. 
+// 검증 파라미터는 논스 검증의 유무를 위한 튜닝을 제공하는데, 그이유는
+// 어떤헤더 반환 매커니즘이 이미 논스를 검증하는 경우가 있기 때문이다. 
 func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, writeHeader WhCallback, start time.Time) (int, error) {
 	// Collect some import statistics to report on
 	stats := struct{ processed, ignored int }{}

@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // evm executes EVM code snippets.
+// EVM 코드조각을 실행해 볼수있다
 package main
 
 import (

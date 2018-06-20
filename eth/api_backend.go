@@ -38,6 +38,7 @@ import (
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
+// full node 들을 위한 ethapi.backend를 구현한다
 type EthAPIBackend struct {
 	eth *Ethereum
 	gpo *gasprice.Oracle
@@ -156,6 +157,7 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return b.eth.BlockChain().SubscribeLogsEvent(ch)
 }
 
+// 이 함수는 문제가 없는 하나의 트렌젝션을 풀에 넣는다 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.AddLocal(signedTx)
 }

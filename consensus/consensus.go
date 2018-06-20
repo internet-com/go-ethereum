@@ -29,6 +29,8 @@ import (
 
 // ChainReader defines a small collection of methods needed to access the local
 // blockchain during header and/or uncle verification.
+// 체인리더 인터페이스는 헤더나 엉클 검증을 하는 동안 로컬 블록체인에 접근하는 
+// 메소드들의 작은 모임이다
 type ChainReader interface {
 	// Config retrieves the blockchain's chain configuration.
 	Config() *params.ChainConfig
@@ -50,6 +52,7 @@ type ChainReader interface {
 }
 
 // Engine is an algorithm agnostic consensus engine.
+// 엔진 인터페이스는 알고리즘과 상관없는 합의 엔진이다
 type Engine interface {
 	// Author retrieves the Ethereum address of the account that minted the given
 	// block, which may be different from the header's coinbase if a consensus
@@ -99,6 +102,7 @@ type Engine interface {
 }
 
 // PoW is a consensus engine based on proof-of-work.
+// PoW 인터페이스는 POW 기반의 합의 엔진이다
 type PoW interface {
 	Engine
 

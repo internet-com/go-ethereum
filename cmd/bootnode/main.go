@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // bootnode runs a bootstrap node for the Ethereum Discovery Protocol.
+// bootnode는 이더리움 discovery protocol을 위한 부트스트랩노드를 실행시킨다
 package main
 
 import (

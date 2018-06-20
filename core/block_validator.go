@@ -29,6 +29,7 @@ import (
 // processed state.
 //
 // BlockValidator implements Validator.
+// 블록 검증자는 블록의 헤더와 엉클블락들과 처리된 스테이트를 검증해야한다
 type BlockValidator struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
@@ -36,6 +37,7 @@ type BlockValidator struct {
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
+// 재사용에 안전한 새로운 블록 검증자를 반환한다
 func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engine consensus.Engine) *BlockValidator {
 	validator := &BlockValidator{
 		config: config,
@@ -48,6 +50,8 @@ func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engin
 // ValidateBody validates the given block's uncles and verifies the the block
 // header's transaction and uncle roots. The headers are assumed to be already
 // validated at this point.
+// 이함수는 주어진 블록의 엉클및 블록헤더의 트렌젝션과 엉클루트를 검증한다
+// 이시점의 헤더는 이미 검증되어다고 가정한다
 func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
@@ -77,6 +81,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // transition, such as amount of used gas, the receipt roots and the state root
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
+// 이 함수는 상태 변화후 가스사용량이나 영수증/상태 루트같은 여러가지 변화를 검증한다.
+// 이 함수는 검증이 성공할 경우 데이터베이스 배치를 반환한다
 func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	header := block.Header()
 	if block.GasUsed() != usedGas {
@@ -103,6 +109,8 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 
 // CalcGasLimit computes the gas limit of the next block after parent.
 // This is miner strategy, not consensus protocol.
+// 이함수는 부모 다음 블록의 가스 한도를 계산한다
+// 이것은 마이닝 정책이지 합의 프로토콜이 아니다
 func CalcGasLimit(parent *types.Block) uint64 {
 	// contrib = (parentGasUsed * 3 / 2) / 1024
 	contrib := (parent.GasUsed() + parent.GasUsed()/2) / params.GasLimitBoundDivisor

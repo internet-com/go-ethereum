@@ -211,7 +211,7 @@ func ephemeralConsole(ctx *cli.Context) error {
 	signal.Notify(abort, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-abort
+		<-abort //abort채널에 뭔가가 오면
 		os.Exit(0)
 	}()
 	console.Stop(true)

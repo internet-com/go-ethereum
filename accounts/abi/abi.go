@@ -26,6 +26,8 @@ import (
 // The ABI holds information about a contract's context and available
 // invokable methods. It will allow you to type check function calls and
 // packs data accordingly.
+// ABI는 계약의 문법과 사용가능한 함수들의 정보를 가지고 있다.
+// 이패키지는 데이터가 올바르게 패킹되어는지 체크하는 함수를 제공해 줄것이다
 type ABI struct {
 	Constructor Method
 	Methods     map[string]Method

@@ -98,6 +98,12 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
+// 이 함수는 이더리움 서브 프로토콜 매니저를 Create.
+// 이더리움 서브프로토콜은 이더리움 네트워크에서 동작가능한 피어들을 관리한다  
+// 해쉬나 블록을 원격피어로 부터 가져오는 다운로더를 만든다
+// Qos 튜너는 산발적으로 피어들의 지연속도를 모아 예측시간을 업데이트 한다
+// statefetcher는 피어 일동의 active state 동기화 및 요청 수락을 관리한다
+// 해쉬 어나운스먼트를 베이스로 블록을 검색하는 블록패쳐를 만든다
 func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
@@ -121,6 +127,8 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		manager.fastSync = uint32(1)
 	}
 	// Initiate a sub-protocol for every implemented version we can handle
+	// 서브 프로토콜을 초기화 한다
+	// 피어별로 사용하는 프로토콜 버전이 다를 수 있으므로 각 버전에 대해 초기화 해준다
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
 		// Skip protocol version if incompatible with the mode of operation
@@ -159,6 +167,10 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		return nil, errIncompatibleConfig
 	}
 	// Construct the different synchronisation mechanisms
+	// 해쉬나 블록을 원격피어로 부터 가져오는 다운로더를 만든다
+	// Qos 튜너는 산발적으로 피어들의 지연속도를 모아 예측시간을 업데이트 한다
+	// statefetcher는 피어 일동의 active state 동기화 및 요청 수락을 관리한다
+	// FullSync, FastSync, LightSync
 	manager.downloader = downloader.New(mode, chaindb, manager.eventMux, blockchain, nil, manager.removePeer)
 
 	validator := func(header *types.Header) error {
@@ -176,6 +188,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		atomic.StoreUint32(&manager.acceptTxs, 1) // Mark initial sync done on any fetcher import
 		return manager.blockchain.InsertChain(blocks)
 	}
+	// 해쉬 어나운스먼트를 베이스로 블록을 검색하는 블록패쳐를 만든다
 	manager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
 
 	return manager, nil
@@ -200,20 +213,29 @@ func (pm *ProtocolManager) removePeer(id string) {
 	}
 }
 
+// 프로토콜 매니져 시작
 func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
+	// 트렌젝션을 브로드 캐스팅한다
 	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
 
 	// broadcast mined blocks
+	//마이닝된 블럭을 브로드캐스팅한다
+	// 프로토콜 매니저의 이벤트 먹스에 마이닝 블록 이벤트를 구독한다
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop()
 
 	// start sync handlers
+	// 싱크 핸들러들을 시작한다
+	// 주기적으로 네트워크와 동기화 하고, 해시와 블록을 다운로드한다
 	go pm.syncer()
+	// 새로운 커넥션에 대한 초기 트렌젝션을 관리한다
+	// 새로운 피어가 나타나면 현재까지 펜딩된 트렌젝션을 릴레이 한다
+	// 네트워크 밴드위스 관리를 위해 각 피어에 트렌젝션을 쪼개서 보낸다
 	go pm.txsyncLoop()
 }
 
@@ -243,11 +265,14 @@ func (pm *ProtocolManager) Stop() {
 }
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
+	//eth/peer.go 참조
 	return newPeer(pv, p, newMeteredMsgWriter(rw))
 }
 
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
+// handle 함수는 이더리움 피어의 인생주기를 관리하기 위해 생성된 콜백함수이다
+// 이함수가 끝나면 피어의 연결이 끊긴다.
 func (pm *ProtocolManager) handle(p *peer) error {
 	// Ignore maxPeers if this is a trusted peer
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
@@ -632,6 +657,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		request.Block.ReceivedFrom = p
 
 		// Mark the peer as owning the block and schedule it for import
+		// 패쳐를 이용하여 블록을 import하기위한 enqueue
 		p.MarkBlock(request.Block.Hash())
 		pm.fetcher.Enqueue(p.id, request.Block)
 
@@ -656,6 +682,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	case msg.Code == TxMsg:
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
+		// txpool에 local하게 adding된 tx가 브로드캐스팅된경우 처리하는 함수
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
 			break
 		}
@@ -681,11 +708,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
+// 피어의 서브셋에게 블록을 전달하거나, 블록의 사용가능성 여부를 알린다
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 	hash := block.Hash()
 	peers := pm.peers.PeersWithoutBlock(hash)
 
 	// If propagation is requested, send to a subset of the peer
+	// 프로파게이션이 요구되면 피어의 일부에게 전송한다
 	if propagate {
 		// Calculate the TD of the block (it's not imported yet, so block.Td is not valid)
 		var td *big.Int
@@ -704,6 +733,7 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 		return
 	}
 	// Otherwise if the block is indeed in out own chain, announce it
+	// 만약 블록이 내부체인에서 발생했다면 어나운스한다.
 	if pm.blockchain.HasBlock(hash, block.NumberU64()) {
 		for _, peer := range peers {
 			peer.SendNewBlockHashes([]common.Hash{hash}, []uint64{block.NumberU64()})
@@ -714,6 +744,7 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
+// 이 함수는 여러개의 트렌젝션을 아직 해당 트렌젝션을 모르는 피어들에게 퍼뜨린다
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
 
@@ -727,11 +758,14 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
+		// 트렌젝션을 피어로 전송한다
 		peer.SendTransactions(txs)
 	}
 }
 
 // Mined broadcast loop
+// 마이닝된 블록에 대한 구독채널에서 이벤트가 발생한경우
+// 브로드캐스팅한다
 func (pm *ProtocolManager) minedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.minedBlockSub.Chan() {
@@ -743,6 +777,7 @@ func (pm *ProtocolManager) minedBroadcastLoop() {
 	}
 }
 
+// 프로토콜 매니져의 txs채널에서 이벤트가 오는지 감지하여 브로드캐스트 한다
 func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {

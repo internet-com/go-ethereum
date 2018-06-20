@@ -48,6 +48,21 @@ The state transitioning model does all all the necessary work to work out a vali
 5) Run Script section
 6) Derive new state root
 */
+
+/*
+상태전환모델
+상태 전환은 현재 월드 상태에 대해 하나의 트렌젝션이 적용되었을 경우 발생하며
+상태 전한 모델은 새로운 상태 루트를 만들기 위한 모든 일을 한다
+1. 논스 핸들링
+2. 프리 가스 페이
+3. 영수증에 대한 새로운 스테이트 오브젝트
+4. 가치 전송
+만약 계약의 생성이라면
+4-a) 트렌젝션을 실행하고
+4-b) 제대로 실행되었을 경우 새로운 스테이트에 대한 코드로서 결과를 사용한다
+스크립트 섹션을 실행하고
+새로운 상태 루트를 유도한다
+*/
 type StateTransition struct {
 	gp         *GasPool
 	msg        Message
@@ -61,6 +76,7 @@ type StateTransition struct {
 }
 
 // Message represents a message sent to a contract.
+// 메시지 인터페이스는 계약으로 전달된 메시지를 나타낸다
 type Message interface {
 	From() common.Address
 	//FromFrontier() (common.Address, error)
@@ -76,6 +92,7 @@ type Message interface {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
+// 이 함수는 주어진 데이터로 메시지에 대한 내재가스를 계산한다
 func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
@@ -109,6 +126,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error)
 }
 
 // NewStateTransition initialises and returns a new state transition object.
+// 이 함수는 새로운 상태오브젝트를 초기화하고 반환한다
 func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
@@ -128,6 +146,8 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
+// 이함수는 주어진 환경에서 주어진 메시지를 적용함으로서 새로운 스테이트를 계산한다
+// 이 함수는 EVM 실행에서 반환된 바이트 수와 가스 소모와 실패했을 경우 에러를 리턴한다.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
@@ -180,7 +200,8 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the the used gas. It returns an error if it
 // failed. An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
+// 이 함수는 현재 메시지를 적용하여 스테이트를 변화하고 사용된 가스와 함께 결과를 리턴한다
+func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint65, failed bool, err error) {
 	if err = st.preCheck(); err != nil {
 		return
 	}

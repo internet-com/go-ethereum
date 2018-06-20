@@ -15,4 +15,6 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package bloombits implements bloom filtering on batches of data.
+// 데이터 덩어리에 대한 블룸 필터링 제공
+// 블룸 필터는 특정 원소가 집합에 속하는지 검사하는데 사용가능한 확률적 자료구조
 package bloombits

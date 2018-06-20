@@ -38,6 +38,10 @@ type PublicDownloaderAPI struct {
 // listens for events from the downloader through the global event mux. In case it receives one of
 // these events it broadcasts it to all syncing subscriptions that are installed through the
 // installSyncSubscription channel.
+//이 함수는 퍼블릭다운로더api를 만든다. api는 글로벌 이벤트 먹스를 통해 
+// 다운로더들로부터의 이벤트를 수신하는 내부 이벤트 루프를 가진다.
+// 만약 이러한 이벤트를 하나 받았다면 , API는 인스톨 싱크 서브스크립션 체널을 통해
+// 설치된 모든 싱크 구독에게 이벤트를 브로드캐스트 한다
 func NewPublicDownloaderAPI(d *Downloader, m *event.TypeMux) *PublicDownloaderAPI {
 	api := &PublicDownloaderAPI{
 		d:   d,
@@ -53,6 +57,9 @@ func NewPublicDownloaderAPI(d *Downloader, m *event.TypeMux) *PublicDownloaderAP
 
 // eventLoop runs a loop until the event mux closes. It will install and uninstall new
 // sync subscriptions and broadcasts sync status updates to the installed sync subscriptions.
+// 이벤트 루프는 이벤트 먹스가 닫힐때까지 루프동작을 한다. 
+// 새로운 싱크 구독에 대한 설치/해제를 할것이고
+// 설치된 싱크 구독에게 싱크상태의 갱신을 브로드캐스트 할것이다
 func (api *PublicDownloaderAPI) eventLoop() {
 	var (
 		sub               = api.mux.Subscribe(StartEvent{}, DoneEvent{}, FailedEvent{})

@@ -91,6 +91,7 @@ type cachingDB struct {
 }
 
 // OpenTrie opens the main account trie.
+// 이함수는 메인 계정 trie를 오픈한다
 func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()

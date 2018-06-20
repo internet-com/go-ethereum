@@ -34,6 +34,10 @@ import (
 )
 
 // DefaultConfig contains default settings for use on the Ethereum main net.
+// 이더리움 기본설정
+// fast sync모드
+// txPool도 기본설정사용
+// 가스 신탁 설정
 var DefaultConfig = Config{
 	SyncMode: downloader.FastSync,
 	Ethash: ethash.Config{
@@ -76,6 +80,8 @@ func init() {
 type Config struct {
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Ethereum main net block is used.
+	// DB가 비었을때 사용할 제네시스 블록.
+	// 기본적으로 비어있으므로 이더리움 메인넷 블록이 사용될것이다
 	Genesis *core.Genesis `toml:",omitempty"`
 
 	// Protocol options

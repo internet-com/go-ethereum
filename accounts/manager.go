@@ -26,6 +26,7 @@ import (
 
 // Manager is an overarching account manager that can communicate with various
 // backends for signing transactions.
+// 
 type Manager struct {
 	backends map[reflect.Type][]Backend // Index of backends currently registered
 	updaters []event.Subscription       // Wallet update subscriptions for all backends
@@ -40,6 +41,9 @@ type Manager struct {
 
 // NewManager creates a generic account manager to sign transaction via various
 // supported backends.
+// 다양한 백엔드들의 트렌젝션에 사인을 하기 위한 일반적인 계정관리자를 생성한다.
+// 모든 백엔드로부터 지갑 노티를 받기 위해 채널을 생성하고
+// 각 백엔드에 해당 채널을 전달하여 구독한다
 func NewManager(backends ...Backend) *Manager {
 	// Retrieve the initial list of wallets from the backends and sort by URL
 	var wallets []Wallet
@@ -51,12 +55,13 @@ func NewManager(backends ...Backend) *Manager {
 
 	subs := make([]event.Subscription, len(backends))
 	for i, backend := range backends {
+		// 백엔드들이 feed에 사용할 채널을 전달한다
 		subs[i] = backend.Subscribe(updates)
 	}
 	// Assemble the account manager and return
 	am := &Manager{
 		backends: make(map[reflect.Type][]Backend),
-		updaters: subs,
+		updaters: subs, //이벤트를 업데이트 하는 백엔드들
 		updates:  updates,
 		wallets:  wallets,
 		quit:     make(chan chan error),
@@ -79,6 +84,7 @@ func (am *Manager) Close() error {
 
 // update is the wallet event loop listening for notifications from the backends
 // and updating the cache of wallets.
+// manager가 죽기전까지 백엔드로부터 노티를 수신하는 루프/ 지갑 캐시를 업데이트 함
 func (am *Manager) update() {
 	// Close all subscriptions when the manager terminates
 	defer func() {
@@ -105,6 +111,7 @@ func (am *Manager) update() {
 			am.lock.Unlock()
 
 			// Notify any listeners of the event
+			// am의 feed 필드는 subscribe과정에서 이미 등록되었다.
 			am.feed.Send(event)
 
 		case errc := <-am.quit:
@@ -164,7 +171,8 @@ func (am *Manager) Find(account Account) (Wallet, error) {
 
 // Subscribe creates an async subscription to receive notifications when the
 // manager detects the arrival or departure of a wallet from any of its backends.
-func (am *Manager) Subscribe(sink chan<- WalletEvent) event.Subscription {
+//이 함수는 비동기 구독을 만든다 백엔드로 부터 오는 지갑 이벤트를 이 매니져가 감지하게 하기위해
+func (am *Manager) Sujbscribe(sink chan<- WalletEvent) event.Subscription {
 	return am.feed.Subscribe(sink)
 }
 

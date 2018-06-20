@@ -175,6 +175,7 @@ func (c *Config) IPCEndpoint() string {
 }
 
 // NodeDB returns the path to the discovery node database.
+// 디스커버리 노드 디비 리턴
 func (c *Config) NodeDB() string {
 	if c.DataDir == "" {
 		return "" // ephemeral
@@ -376,6 +377,7 @@ func (c *Config) parsePersistentNodes(path string) []*discover.Node {
 func (c *Config) AccountConfig() (int, int, string, error) {
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
+	//key derivation function
 	if c.UseLightweightKDF {
 		scryptN = keystore.LightScryptN
 		scryptP = keystore.LightScryptP
@@ -400,6 +402,7 @@ func (c *Config) AccountConfig() (int, int, string, error) {
 	return scryptN, scryptP, keydir, err
 }
 
+// Account Manager 생성
 func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 	scryptN, scryptP, keydir, err := conf.AccountConfig()
 	var ephemeral string
@@ -412,13 +415,16 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	//키스토어 folder 생성
 	if err := os.MkdirAll(keydir, 0700); err != nil {
 		return nil, "", err
 	}
 	// Assemble the account manager and supported backends
+	//키스토어를 새로 만들고, 생성된 wallet만 우선 백엔드에 저장함
 	backends := []accounts.Backend{
 		keystore.NewKeyStore(keydir, scryptN, scryptP),
 	}
+	// usb 지갑 지원부분
 	if !conf.NoUSB {
 		// Start a USB hub for Ledger hardware wallets
 		if ledgerhub, err := usbwallet.NewLedgerHub(); err != nil {
@@ -433,5 +439,6 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 			backends = append(backends, trezorhub)
 		}
 	}
+	// 현재 백엔드에는 지갑정보만 있고 이벤트 구독정보는 없는 상태로 매니저생성
 	return accounts.NewManager(backends...), ephemeral, nil
 }

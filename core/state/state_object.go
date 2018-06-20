@@ -60,6 +60,10 @@ func (self Storage) Copy() Storage {
 // First you need to obtain a state object.
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
+// 스테이트 오브젝트 는수정 될이더리움 계정 을 표현한다
+// 사용패턴은 다음과 같다
+// 이 오브젝트를 통해서 계정의 값에 접근가능하다
+// 최종적으로 commitTiie를 호출하여 수정된 storage trie를 데이터베이스에 쓴다 
 type stateObject struct {
 	address  common.Address
 	addrHash common.Hash // hash of ethereum address of the account
@@ -95,6 +99,8 @@ func (s *stateObject) empty() bool {
 
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
+// Account 구조체는 계정의 이더리움 합의를 나타낸다
+// 이 오브젝트들은 메인 계정 트라이에 저장된다
 type Account struct {
 	Nonce    uint64
 	Balance  *big.Int
@@ -198,6 +204,7 @@ func (self *stateObject) setState(key, value common.Hash) {
 }
 
 // updateTrie writes cached storage modifications into the object's storage trie.
+// updateTrie 는 캐싱된 저장소 수정을 오브젝트의 저장소 trie에 저장한다  
 func (self *stateObject) updateTrie(db Database) Trie {
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {

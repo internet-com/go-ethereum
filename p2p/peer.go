@@ -62,6 +62,7 @@ type protoHandshake struct {
 }
 
 // PeerEventType is the type of peer events emitted by a p2p.Server
+// 피어 이벤트 타입은 p2p서버에 의해 퍼질 피어 이벤트의 종류이다
 type PeerEventType string
 
 const (
@@ -75,6 +76,7 @@ const (
 
 	// PeerEventTypeMsgSend is the type of event emitted when a
 	// message is successfully sent to a peer
+	// geth에서 트랜젝션을 보낼 경우 발생하는 메시지이다
 	PeerEventTypeMsgSend PeerEventType = "msgsend"
 
 	// PeerEventTypeMsgRecv is the type of event emitted when a

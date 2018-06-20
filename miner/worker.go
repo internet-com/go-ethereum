@@ -132,6 +132,7 @@ type worker struct {
 	atWork int32
 }
 
+//새로운 워커를 생성
 func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase common.Address, eth Backend, mux *event.TypeMux) *worker {
 	worker := &worker{
 		config:         config,
@@ -151,13 +152,36 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
 	// Subscribe NewTxsEvent for tx pool
+	// newTXsEvent를 txpool로부터 구독
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
+	// 블록체인의 체인 헤더와 사이드체인 이벤트를 구독
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+	//체인이 싱크되었는지 확인
 	go worker.update()
 
+	// 이벤트 처리 핸들러를 동작시켜놓는다(대기중)
+	// 이후 부터는 내부적으로 commitNewWork를 호출하여 무한루프로 동작
 	go worker.wait()
+
+	// 블록 시간 체크(너무 시간이 많이 가지 않도록)
+	// 새로운 해더를 생성하고, 해더 번호에 부모+1
+	// 헤더가 ethash 프로토콜을 따르도록 난이도 필드를 초기화 한다.
+	// 현재 프로세싱이 가능한 트렌젝션을 검색하고 
+	// 관련 어카운트별로 그룹핑한 후 논스로 정렬한다.
+	//논스 존중 방식으로 가격정렬된 트렌젝션의 세트를 만든다
+	txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
+
+	// 트렌젝션을 적용하고 트렌젝션과 영수증을 만든다
+	// 주어진 스테이트 DB에 트렌젝션을 적용하고,
+	// 트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+	// 트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
+	// 펜딩 스테이트 이벤트를 던진다
+	// TODO 엉클블록처리
+	// 합의 엔진으로 봉인하기 위한 새 블록을 만든다
+	// 블록을 누적하고 엉클 리워드를 하고 최종 상태를 설정하고 블록을 조립한다
+       //새로운 작업을 현재 살아있는 마이너 에이전트에게 전달한다
 	worker.commitNewWork()
 
 	return worker
@@ -201,6 +225,7 @@ func (self *worker) pendingBlock() *types.Block {
 	return self.current.Block
 }
 
+// 등록된 Agent를 스타트 한다
 func (self *worker) start() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
@@ -298,6 +323,8 @@ func (self *worker) update() {
 func (self *worker) wait() {
 	for {
 		mustCommitNewWork := true
+		// cpu agent 생성때 등록했던 채널
+		// 마이닝을 통해 nonce를 찾은 완벽한 블록이 recv 채널을 통해 전달됨 
 		for result := range self.recv {
 			atomic.AddInt32(&self.atWork, -1)
 
@@ -309,6 +336,7 @@ func (self *worker) wait() {
 
 			// Update the block hash in all logs since it is now available and not when the
 			// receipt/log of individual transactions were created.
+			//
 			for _, r := range work.receipts {
 				for _, l := range r.Logs {
 					l.BlockHash = block.Hash()
@@ -350,6 +378,7 @@ func (self *worker) wait() {
 }
 
 // push sends a new work task to currently live miner agents.
+// 이 함수는 새로운 작업을 현재 살아있는 마이너 에이전트에게 전달한다
 func (self *worker) push(work *Work) {
 	if atomic.LoadInt32(&self.mining) != 1 {
 		return
@@ -394,6 +423,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 	return nil
 }
 
+//새로운 작업을 시작한다
 func (self *worker) commitNewWork() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
@@ -402,6 +432,7 @@ func (self *worker) commitNewWork() {
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
 
+	// 블록 시간 체크(너무 시간이 많이 가지 않도록)
 	tstart := time.Now()
 	parent := self.chain.CurrentBlock()
 
@@ -417,6 +448,7 @@ func (self *worker) commitNewWork() {
 	}
 
 	num := parent.Number()
+	// 새로운 해더를 생성하고, 해더 번호에 부모+1
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
@@ -428,11 +460,13 @@ func (self *worker) commitNewWork() {
 	if atomic.LoadInt32(&self.mining) == 1 {
 		header.Coinbase = self.coinbase
 	}
+	// 헤더가 ethash 프로토콜을 따르도록 난이도 필드를 초기화 한다.
 	if err := self.engine.Prepare(self.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return
 	}
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
+	// DAO 해킹관련 하드포크를 했기 때문에, 해당 구간의 블록은 따로 검증함
 	if daoBlock := self.config.DAOForkBlock; daoBlock != nil {
 		// Check whether the block is among the fork extra-override range
 		limit := new(big.Int).Add(daoBlock, params.DAOForkExtraRange)
@@ -446,6 +480,7 @@ func (self *worker) commitNewWork() {
 		}
 	}
 	// Could potentially happen if starting to mine in an odd state.
+	// current = work
 	err := self.makeCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
@@ -456,15 +491,25 @@ func (self *worker) commitNewWork() {
 	if self.config.DAOForkSupport && self.config.DAOForkBlock != nil && self.config.DAOForkBlock.Cmp(header.Number) == 0 {
 		misc.ApplyDAOHardFork(work.state)
 	}
+	// 현재 프로세싱이 가능한 트렌젝션을 검색하고 
+	// 관련 어카운트별로 그룹핑한 후 논스로 정렬한다.
 	pending, err := self.eth.TxPool().Pending()
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
+	//논스 존중 방식으로 가격정렬된 트렌젝션의 세트를 만든다
 	txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
+
+	// 트렌젝션을 적용하고 트렌젝션과 영수증을 만든다
+	// 주어진 스테이트 DB에 트렌젝션을 적용하고,
+	// 트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+	// 트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
+	// 펜딩 스테이트 이벤트를 던진다
 	work.commitTransactions(self.mux, txs, self.chain, self.coinbase)
 
 	// compute uncles for the new block.
+	// TODO 엉클블록처리
 	var (
 		uncles    []*types.Header
 		badUncles []common.Hash
@@ -487,6 +532,8 @@ func (self *worker) commitNewWork() {
 		delete(self.possibleUncles, hash)
 	}
 	// Create the new block to seal with the consensus engine
+	// 합의 엔진으로 봉인하기 위한 새 블록을 만든다
+	// 블록을 누적하고 엉클 리워드를 하고 최종 상태를 설정하고 블록을 조립한다
 	if work.Block, err = self.engine.Finalize(self.chain, header, work.state, work.txs, uncles, work.receipts); err != nil {
 		log.Error("Failed to finalize block for sealing", "err", err)
 		return
@@ -496,6 +543,7 @@ func (self *worker) commitNewWork() {
 		log.Info("Commit new mining work", "number", work.Block.Number(), "txs", work.tcount, "uncles", len(uncles), "elapsed", common.PrettyDuration(time.Since(tstart)))
 		self.unconfirmed.Shift(work.Block.NumberU64() - 1)
 	}
+       //새로운 작업을 현재 살아있는 마이너 에이전트에게 전달한다
 	self.push(work)
 	self.updateSnapshot()
 }
@@ -528,6 +576,7 @@ func (self *worker) updateSnapshot() {
 	self.snapshotState = self.current.state.Copy()
 }
 
+// 트렌젝션을 실행하고 mux를 통해 펜딩 스테이트 이벤트를 전송한다
 func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByPriceAndNonce, bc *core.BlockChain, coinbase common.Address) {
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(env.header.GasLimit)
@@ -562,6 +611,10 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 		// Start executing the transaction
 		env.state.Prepare(tx.Hash(), common.Hash{}, env.tcount)
 
+		// 트렌젝션을 적용하고 트렌젝션과 영수증을 만든다
+		// 주어진 스테이트 DB에 트렌젝션을 적용하고,
+		// 트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+		// 트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
 		err, logs := env.commitTransaction(tx, bc, coinbase, env.gasPool)
 		switch err {
 		case core.ErrGasLimitReached:
@@ -607,12 +660,17 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 				mux.Post(core.PendingLogsEvent{Logs: logs})
 			}
 			if tcount > 0 {
+				// 펜딩 스테이트 이벤트를 던진다
 				mux.Post(core.PendingStateEvent{})
 			}
 		}(cpy, env.tcount)
 	}
 }
 
+// 트렌젝션을 적용하고 트렌젝션과 영수증을 만든다
+// 주어진 스테이트 DB에 트렌젝션을 적용하고,
+// 트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+// 트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
 

@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // rlpdump is a pretty-printer for RLP data.
+// rlpdump는 RLP데이터의 예쁜 프린터이다
 package main
 
 import (

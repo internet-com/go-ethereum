@@ -39,10 +39,14 @@ type ServiceContext struct {
 // OpenDatabase opens an existing database with the given name (or creates one
 // if no previous can be found) from within the node's data directory. If the
 // node is an ephemeral one, a memory database is returned.
+// 이 함수는 주어진 이름으로 Level DB를 생성하거나 이미 존재한다면 접속한다
+// 만약 노드가 수명이 짧은 노드라면, 메모리 DB를 리턴한다.
+
 func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int) (ethdb.Database, error) {
 	if ctx.config.DataDir == "" {
 		return ethdb.NewMemDatabase(), nil
 	}
+	//ethdb/database.go 참조
 	db, err := ethdb.NewLDBDatabase(ctx.config.resolvePath(name), cache, handles)
 	if err != nil {
 		return nil, err

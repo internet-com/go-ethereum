@@ -43,6 +43,9 @@ type unconfirmedBlock struct {
 // have have not yet reached enough maturity to guarantee chain inclusion. It is
 // used by the miner to provide logs to the user when a previously mined block
 // has a high enough guarantee to not be reorged out of the canonical chain.
+// 미확정블록은 자체적으로 마이닝되었지만 체인에 포함되기엔 충분히 검증되지 않은
+// 블록이다. 이 구조체는 기존에 마이닝된 블록이 충분히 캐노니컬 체인을 재구성
+// 하지 않아도 될만큼 검증되었다는 것을 마이너가 유저에게 알리기 위해 사용된다
 type unconfirmedBlocks struct {
 	chain  headerRetriever // Blockchain to verify canonical status through
 	depth  uint            // Depth after which to discard previous blocks
@@ -85,6 +88,8 @@ func (set *unconfirmedBlocks) Insert(index uint64, hash common.Hash) {
 // Shift drops all unconfirmed blocks from the set which exceed the unconfirmed sets depth
 // allowance, checking them against the canonical chain for inclusion or staleness
 // report.
+// Shift는 뎁스가 초과한 미확정블록들을 제거한다
+// 또한 그들 캐노니컬 체인에 포함되었는지 확인한다
 func (set *unconfirmedBlocks) Shift(height uint64) {
 	set.lock.Lock()
 	defer set.lock.Unlock()

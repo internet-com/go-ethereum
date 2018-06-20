@@ -42,6 +42,7 @@ func (*devNull) Close() error                      { return nil }
 
 // txJournal is a rotating log of transactions with the aim of storing locally
 // created transactions to allow non-executed ones to survive node restarts.
+// 이 구조체는 노드의 재시작에도 트렌젝션을 생성하기 위한 트렌젝션의 교대 로깅이다.
 type txJournal struct {
 	path   string         // Filesystem path to store the transactions at
 	writer io.WriteCloser // Output stream to write new transactions into

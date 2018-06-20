@@ -189,6 +189,7 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 }
 
 // Start creates a live P2P node and starts running it.
+// 살아있는 p2p 노드를 만들고 실행시킴 
 func (n *Node) Start() error {
 	return n.node.Start()
 }

@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package state provides a caching layer atop the Ethereum state trie.
+// 이 패키지는 이더리움 스테이트 트라이의 최상단 캐싱 레이어를 제공한다
 package state
 
 import (
@@ -49,6 +50,9 @@ var (
 // nested states. It's the general query interface to retrieve:
 // * Contracts
 // * Accounts
+// 이더리움 프로토콜의 스테이트DB는 머클트라이 관련 모든것을 저장하는데 사용된다.
+// 스테이트DB는 중첩된 스테이트를 캐싱하고 저장한다.
+// 이것은 걔약과 계정을 반환하기 위한 일반적인 쿼리 인터페이스이다
 type StateDB struct {
 	db   Database
 	trie Trie
@@ -76,6 +80,8 @@ type StateDB struct {
 
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
+	// 스테이트의 수정이 잠시 저장되는 장소
+	// 이것은 스냅샷과 리버트 투 스냅샷의 백본이 된다
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int
@@ -84,7 +90,9 @@ type StateDB struct {
 }
 
 // Create a new state from a given trie.
+// 주어진 trie로 부터 새로운 스테이트(stateDB)를 생성한다.
 func New(root common.Hash, db Database) (*StateDB, error) {
+
 	tr, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err
@@ -251,6 +259,7 @@ func (self *StateDB) Database() Database {
 
 // StorageTrie returns the storage trie of an account.
 // The return value is a copy and is nil for non-existent accounts.
+//  이함수는 계정의 저장소 트라이를 반환한다
 func (self *StateDB) StorageTrie(addr common.Address) Trie {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil {
@@ -423,6 +432,11 @@ func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObjec
 //   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
+// 이 함수는 명백하게 스테이트 오브젝트를 생성한다. 
+// 이미 존재할 경우 새로운 계정으로 잔고를 옮겨온다.
+// 이 함수는 EVM이 생성되는 과정에서 호출 된다. 
+// 호출 되는 상황은 계약이 아래와 같은 것을 할때..
+// 잔고가 옮겨지는 것은 이더리움이 사라지지 않는것을 보장한다
 func (self *StateDB) CreateAccount(addr common.Address) {
 	new, prev := self.createObject(addr)
 	if prev != nil {
@@ -509,6 +523,8 @@ func (self *StateDB) Snapshot() int {
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.
+// 이함수는 모든 스테이트를 주어진 리비전으로 되돌려 놓는다
+// 블록에 들어가는 트렌젝션 리스트를 하나하나 실행하는 과정에서 에러가 날경우
 func (self *StateDB) RevertToSnapshot(revid int) {
 	// Find the snapshot in the stack of valid snapshots.
 	idx := sort.Search(len(self.validRevisions), func(i int) bool {
@@ -531,6 +547,8 @@ func (self *StateDB) GetRefund() uint64 {
 
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
+// 이 함수는 환불 뿐만아니라 자체 소멸된 오브젝트의 제거와
+// 저널의 클리어를 통해 스테이트를 확정짓는다 
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
@@ -559,6 +577,8 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 // IntermediateRoot computes the current root hash of the state trie.
 // It is called in between transactions to get the root hash that
 // goes into transaction receipts.
+// 이 함수는 스테이트 트라이의 현재 루트 해시를 연산한다. 
+// 이 함수는 트렌젝션중 트렌젝션 영수증으로 갈 루트해시를 얻기 위해 호출된다
 func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	s.Finalise(deleteEmptyObjects)
 	return s.trie.Hash()
@@ -579,6 +599,7 @@ func (s *StateDB) clearJournalAndRefund() {
 }
 
 // Commit writes the state to the underlying in-memory trie database.
+// 이 함수는 메모리 trie DB에 스테이트를 쓴다
 func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
 	defer s.clearJournalAndRefund()
 

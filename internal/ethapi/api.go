@@ -201,6 +201,9 @@ func (s *PublicAccountAPI) Accounts() []common.Address {
 // PrivateAccountAPI provides an API to access accounts managed by this node.
 // It offers methods to create, (un)lock en list accounts. Some methods accept
 // passwords and are therefore considered private by default.
+// PrivateAccountAPI는 이 노드에 의해 관리되는 어카운트에 접속가능한 API를 제공한다.
+// 생성과 락/언락을 제공함다
+// 어떤 함수들은 암호를 요구하며, 그러므로 private가 디폴트로 고려된다
 type PrivateAccountAPI struct {
 	am        *accounts.Manager
 	nonceLock *AddrLocker
@@ -362,6 +365,7 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args SendTxArgs
 // SendTransaction will create a transaction from the given arguments and
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
+// 이함수는 주어진 파라미터들로 트렌젝션을 만들고 사인한 후 tx pool에 전달하는 함수이다
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
@@ -471,6 +475,7 @@ func (s *PrivateAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Byt
 
 // SignAndSendTransaction was renamed to SendTransaction. This method is deprecated
 // and will be removed in the future. It primary goal is to give clients time to update.
+// 이함수는 주어진 파라미터들로 트렌젝션을 만들고 사인한 후 tx pool에 전달하는 함수이다
 func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
 	return s.SendTransaction(ctx, args, passwd)
 }
@@ -934,6 +939,7 @@ func newRPCTransactionFromBlockHash(b *types.Block, hash common.Hash) *RPCTransa
 }
 
 // PublicTransactionPoolAPI exposes methods for the RPC interface
+// PublicTransacionPoolAPI는 RPC 인터페이스를 위한 함수들을 노출한다
 type PublicTransactionPoolAPI struct {
 	b         Backend
 	nonceLock *AddrLocker
@@ -1170,6 +1176,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
+// 이함수는 트렌젝션을 tx pool로 전달하는 함수이다
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
@@ -1190,6 +1197,7 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
+// 이함수는 주어진 파라미터들로 트렌젝션을 만들고 사인한 후 tx pool에 전달하는 함수이다
 func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args SendTxArgs) (common.Hash, error) {
 
 	// Look up the wallet containing the requested signer
@@ -1227,6 +1235,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
+// 이함수는 사인된 트렌젝션을 tx pool에 추가하는 함수이다
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {

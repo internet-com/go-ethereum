@@ -30,4 +30,7 @@ RLP values are distinguished by a type tag. The type tag precedes the
 value in the input stream and defines the size and kind of the bytes
 that follow.
 */
+// 패키지 rlp는 제멋대로 중첩된 바이너리데이터의 인코딩을 위해 사용되며 RLP는 이더리움 오브젝트를 직렬화하는 메인 인코딩 방식이다
+// RLP의 목적은 오직 구조체를 인코딩하는 것이다
+// RLP값은 타입 태그로 구분 가능하다
 package rlp

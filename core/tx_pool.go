@@ -113,6 +113,8 @@ const (
 
 // blockChain provides the state of blockchain and current gas limit to do
 // some pre checks in tx pool and event subscribers.
+// 블록체인 인터페이스는 txpool과 이벤트 등록자들이 어떤 선행 검증을 할수 있도록
+// 블록체인의 상태와 현재 가스 리밋을 제공한다
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
@@ -123,7 +125,9 @@ type blockChain interface {
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
+	// 로컬 트렌젝션을 처리하지 않음
 	NoLocals  bool          // Whether local transaction handling should be disabled
+	// 노드가 재시작되더라도 생존하기 위한 로컬 트렌젝션의 저널
 	Journal   string        // Journal of local transactions to survive node restarts
 	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 
@@ -135,11 +139,17 @@ type TxPoolConfig struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
+	// 실행가능하지 않은 트렌잭션이 큐된 최대 시간
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
 // pool.
+// tx pool 기본설정
+// 어카운트당 보장가능한 실행가능 트렌젝션수
+// 모든 어카운트가 사용가능한 실행가능 트렌젝션수
+// 어카운트당 보장가능한 아직 실행불가한 트렌젝션수
+// 모든 어카운트가 사용가능한 아직 실행 불가능한 트렌젝션수
 var DefaultTxPoolConfig = TxPoolConfig{
 	Journal:   "transactions.rlp",
 	Rejournal: time.Hour,
@@ -181,6 +191,12 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 // The pool separates processable transactions (which can be applied to the
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
+// 트렌젝션 풀은 현재까지 알려진 모든 트렌젝션을 포함한다.
+// 네트워크를 통해 수신되거나, 로컬하게 생성된 트렌젝션이 풀에 들어가게 된다.
+// 트렌젝션이 블록체인에 포함되면, 풀에서 나가게 된다.
+
+//풀은 현재 상태에 적용가능한 처리가능 트렌젝션과 퓨처트렌젝션으로 나뉜다.
+// 트렌젝션들은 그들의 수신/처리에 따라 이 두 스테이트를 오간다
 type TxPool struct {
 	config       TxPoolConfig
 	chainconfig  *params.ChainConfig
@@ -198,6 +214,7 @@ type TxPool struct {
 	currentMaxGas uint64              // Current gas limit for transaction caps
 
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
+	// 로컬트렌젝션을 디스크 백업할 저널
 	journal *txJournal  // Journal of local transaction to back up to disk
 
 	pending map[common.Address]*txList         // All currently processable transactions
@@ -213,6 +230,7 @@ type TxPool struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
+// 이함수는 네트워크로 부터 들어오는 트렌젝션들을 수집하고 정렬하고 필터링할 새로운 트렌젝션 풀을 생성한다 
 func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
@@ -246,10 +264,13 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		}
 	}
 	// Subscribe events from blockchain
+	// 블록체인의 체인 헤드 이벤트를 구독한다
+	// 전달된 채널을 블록체인의 피드에 추가하고 블록체인의 스코프에서 트렉킹함
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 
 	// Start the event loop and return
 	pool.wg.Add(1)
+	// 풀루프를 시작한다
 	go pool.loop()
 
 	return pool
@@ -258,6 +279,8 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 // loop is the transaction pool's main event loop, waiting for and reacting to
 // outside blockchain events as well as for various reporting and transaction
 // eviction events.
+// 트렌젝션 풀의 메인 루프로서 다양한 레포팅이나 트렌젝션 퇴거 뿐만 아니라 
+// 외부 불록체인 이벤트를 기다리거나 반응한다
 func (pool *TxPool) loop() {
 	defer pool.wg.Done()
 
@@ -280,6 +303,7 @@ func (pool *TxPool) loop() {
 	for {
 		select {
 		// Handle ChainHeadEvent
+		// 블록체인에서 체인 헤드 이벤트 발생
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
 				pool.mu.Lock()
@@ -490,6 +514,8 @@ func (pool *TxPool) Stats() (int, int) {
 
 // stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
+// stats 함수는 현재 펜딩된 트렌젝션의 수와 
+// 큐된(실행 가능하지 않은) 트렌젝션의 수를 반환한다
 func (pool *TxPool) stats() (int, int) {
 	pending := 0
 	for _, list := range pool.pending {
@@ -522,6 +548,8 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 // Pending retrieves all currently processable transactions, groupped by origin
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
+// 이 함수는 현재 프로세싱이 가능한 트렌젝션을 검색하고 
+// 관련 어카운트별로 그룹핑한 후 논스로 정렬한다.
 func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -602,6 +630,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // If a newly added transaction is marked as local, its sending account will be
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
+
+// 트랜젝션을 검증하고, 차후 pending 에서 승격되어 실행되도록 실행불가 큐에 추가한다.
+// 만약 이 트렌젝션이 이미 pending되었거나 승격되어 실행되기 전이라면 기존 트렌젝션에 덮어씌워
+// promote함수를 재호출하지 않도록 한다
+// 만약 새롭게 추가된 트렌젝션이 로컬로 표시된다면, 트렌젝션을 생성한 어카운트는 화이트 리스트에 등록되어
+// 다른 관련된 트렌젝션의 영향으로 가격 제약이 생겨 풀에서 드랍되지 않도록 한다.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
@@ -754,6 +788,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 // AddLocal enqueues a single transaction into the pool if it is valid, marking
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
+// 이 함수는 문제가 없는 하나의 트렌젝션을 풀에 넣는다 
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 	return pool.addTx(tx, !pool.config.NoLocals)
 }
@@ -780,6 +815,7 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 }
 
 // addTx enqueues a single transaction into the pool if it is valid.
+// 이 함수는 문제가 없는 하나의 트렌젝션을 풀에 넣는다 
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -798,6 +834,7 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 }
 
 // addTxs attempts to queue a batch of transactions if they are valid.
+// addTxs는 여러개의 트렌젝션을 큐한다
 func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -807,6 +844,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
+// addTxsLocked는 여러개의 트렌젝션을 큐한다
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 	// Add the batch of transaction, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})

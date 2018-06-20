@@ -42,6 +42,7 @@ type Protocol struct {
 	// The peer connection is closed when Start returns. It should return
 	// any protocol-level error (such as an I/O error) that is
 	// encountered.
+	// Run 함수는 프로토콜이 피어와 협상하는 중에 새로운 고루틴에서 호출된다.
 	Run func(peer *Peer, rw MsgReadWriter) error
 
 	// NodeInfo is an optional helper method to retrieve protocol specific metadata

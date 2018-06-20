@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package ethereum defines interfaces for interacting with Ethereum.
+// 이더리움 패키지는 이더리움과 통신하는 인터페이스를 정의한다
 package ethereum
 
 import (
@@ -33,6 +34,7 @@ var NotFound = errors.New("not found")
 
 // Subscription represents an event subscription where events are
 // delivered on a data channel.
+// Subscription 인터페이스는 데이터 채널위에서 전송되는 이벤트를 구독한다.
 type Subscription interface {
 	// Unsubscribe cancels the sending of events to the data channel
 	// and closes the error channel.
@@ -51,6 +53,11 @@ type Subscription interface {
 // should be preferred over full blocks whenever possible.
 //
 // The returned error is NotFound if the requested item does not exist.
+// 체인리더 인터페이스는 블록체인에 대한 접근을 제공한다.
+// 이 인터페이스 내부의 함수들은 캐노니컬 체인(블록넘버로 접근했을때)과 
+// 기존에 이 노드에 다운받았거나 처리되었던 다른 포크체인의 저수준 데이터를 접근한다.
+// 블록 번호 인자는 마지막 캐노니컬 블록을 선택하기 위해 nil일수 있다.
+// 블록헤더를 읽는것은 풀불록이 가능한 상태에서 읽는것이 선호된다.
 type ChainReader interface {
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
@@ -61,6 +68,7 @@ type ChainReader interface {
 
 	// This method subscribes to notifications about changes of the head block of
 	// the canonical chain.
+	// 이 함수는 캐노니컬 체인의 헤드블록의 변경에 대한 노티를 구독한다
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (Subscription, error)
 }
 
@@ -73,21 +81,37 @@ type ChainReader interface {
 // reorganisations.
 //
 // The returned error is NotFound if the requested item does not exist.
+// 트렌젝션리더 인터페이스는 지난 트렌젝션들과 그들의 영수증에 대한 접근을 제공한다.
+// 구현들은 아마도 반환 가능한 트렌젝션과 영수증에 대해 임의의 제약을 부과할것이다.
+// historic한 트렌젝션들은 가능하지 않을 수도 있다.
+// 가능하다면 이함수를 신뢰하는 것을 회피하라. 체인 재구성에 직면한 상황에서
+// 로그필터러 인터페이스를 통해 얻는 계약 로그가 보다 더 신뢰가능하고 안전하다 
+
 type TransactionReader interface {
 	// TransactionByHash checks the pool of pending transactions in addition to the
 	// blockchain. The isPending return value indicates whether the transaction has been
 	// mined yet. Note that the transaction may not be part of the canonical chain even if
 	// it's not pending.
+	// TransactionByHash 함수는 블록체인에 추가할 대기 트렌젝션 풀을 체크한다.
+	// isPending의 반환값은 아직 마이닝되지 않은 트렌젝션을 가리킨다.
+	// 그 트렌젝션은 대기중이 아니라도 캐노니컬 체인의 부분이 아닐수 있다는 것을 기억하라. 
 	TransactionByHash(ctx context.Context, txHash common.Hash) (tx *types.Transaction, isPending bool, err error)
 	// TransactionReceipt returns the receipt of a mined transaction. Note that the
 	// transaction may not be included in the current canonical chain even if a receipt
 	// exists.
+	// Transaction Receipt 함수는 채굴된 트렌젝션의 영수증을 반환한다.
+	// 영수증이 존재하더라도 그 트렌젝션은 현재 캐노니컬 체인에 포함되지 않을수 있다.
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 }
 
 // ChainStateReader wraps access to the state trie of the canonical blockchain. Note that
 // implementations of the interface may be unable to return state values for old blocks.
 // In many cases, using CallContract can be preferable to reading raw contract storage.
+// 체인상태리더 인터페이스는 캐노니컬 블록체인의 상태트라이에 대한 접근을 포함한다.
+// 인터페이스의 구현들은 오래된 블럭에 대한 상태 값을 반환하는 것이 
+// 불가능할수도 있다는 것을 기억하라
+// 대부분의 상황에서, 저수준 계약 저장소를 읽는 것은 
+// CallContract 함수를 사용하는 것이 선호된다
 type ChainStateReader interface {
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
@@ -97,6 +121,7 @@ type ChainStateReader interface {
 
 // SyncProgress gives progress indications when the node is synchronising with
 // the Ethereum network.
+// SyncProgress 구조체는 노드가 이더리움 네트워크가 싱크중일때 진행상황을 알려준다
 type SyncProgress struct {
 	StartingBlock uint64 // Block number where sync began
 	CurrentBlock  uint64 // Current block number where sync is at
@@ -107,11 +132,14 @@ type SyncProgress struct {
 
 // ChainSyncReader wraps access to the node's current sync status. If there's no
 // sync currently running, it returns nil.
+// 체인싱크리더 인터페이스는 노드의 현재 동기화 상태에 접근을 포함한다.
+// 만약 현재 싱크중이지 않다면 nil을 리턴한다
 type ChainSyncReader interface {
 	SyncProgress(ctx context.Context) (*SyncProgress, error)
 }
 
 // CallMsg contains parameters for contract calls.
+// CallMsg 구조체는 계약 호출을 위한 파라미터를 포함한다
 type CallMsg struct {
 	From     common.Address  // the sender of the 'transaction'
 	To       *common.Address // the destination contract (nil for contract creation)
@@ -125,11 +153,17 @@ type CallMsg struct {
 // the EVM but not mined into the blockchain. ContractCall is a low-level method to
 // execute such calls. For applications which are structured around specific contracts,
 // the abigen tool provides a nicer, properly typed way to perform calls.
+// 계약호출 인터페이스는블록체인에 채굴되어 포함되지 않았지만
+// EVM에 의해 실행될 필수 트렌젝션들에 대한 계약 호출을 제공한다
+// 이 인터페이스는 위와같은 호출을 실행시키는 저수준 함수이다.
+// 특정계약을 구성하는 프로그램들을 위해 abigen tool 인터페이스는 
+// 호출을 수행하기 위한 보다 좋고 적합한 방법을 제공한다
 type ContractCaller interface {
 	CallContract(ctx context.Context, call CallMsg, blockNumber *big.Int) ([]byte, error)
 }
 
 // FilterQuery contains options for contract log filtering.
+// 필터쿼리 구조체는 계약 로그 필터링을 위한 옵션을 포함한다
 type FilterQuery struct {
 	FromBlock *big.Int         // beginning of the queried range, nil means genesis block
 	ToBlock   *big.Int         // end of the range, nil means latest block
@@ -154,6 +188,8 @@ type FilterQuery struct {
 //
 // Logs received through a streaming query subscription may have Removed set to true,
 // indicating that the log was reverted due to a chain reorganisation.
+// 로그 필터러 인터페이스는 한번의 쿼리나 연속적인 이벤트 구독을 이용하는
+// 계약 로그 이벤트에 대한 접근을 제공한다 
 type LogFilterer interface {
 	FilterLogs(ctx context.Context, q FilterQuery) ([]types.Log, error)
 	SubscribeFilterLogs(ctx context.Context, q FilterQuery, ch chan<- types.Log) (Subscription, error)
@@ -167,12 +203,18 @@ type LogFilterer interface {
 // The transaction must be signed and have a valid nonce to be included. Consumers of the
 // API can use package accounts to maintain local private keys and need can retrieve the
 // next available nonce using PendingNonceAt.
+// TransactionSender 인터페이스는 trasanction 전송을 포함한다. 
+// SendTransaction 함수는 사인된 트렌젝션을 실행하기 위해 대기 트렌젝션 풀에 주입한다.
+// 만약 트렌젝션이 계약의 생성이였다면, 트렌젝션이 마이닝 된후 계약 주소를 반환받기 위해
+// TransactionReceipt 함수가 사용될 수 있다.
 type TransactionSender interface {
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
 }
 
 // GasPricer wraps the gas price oracle, which monitors the blockchain to determine the
 // optimal gas price given current fee market conditions.
+// GasPricer 인터페이스는 블록체인이 주어진 현재 마켓의 수수료 상태에서
+// 최적의 가스가격을 결정하도록 모니터링 하는 GasPriceOracle을 포함한다
 type GasPricer interface {
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 }
@@ -182,6 +224,8 @@ type GasPricer interface {
 // commonly used to display the result of ’unconfirmed’ actions (e.g. wallet value
 // transfers) initiated by the user. The PendingNonceAt operation is a good way to
 // retrieve the next available transaction nonce for a specific account.
+// PendingStateReader 인터페이스는 아직 블록체인에 포함되지 않은 
+// 모든 알려진 실행가능한 트렌젝션의 대기상태로의 접근을 지원한다
 type PendingStateReader interface {
 	PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error)
 	PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error)
@@ -191,6 +235,7 @@ type PendingStateReader interface {
 }
 
 // PendingContractCaller can be used to perform calls against the pending state.
+// PendingContractCaller 인터페이스는 대기상태에 대한 수행 호출을 위해 사용될수 있다
 type PendingContractCaller interface {
 	PendingCallContract(ctx context.Context, call CallMsg) ([]byte, error)
 }
@@ -199,12 +244,15 @@ type PendingContractCaller interface {
 // specific transaction based on the pending state. There is no guarantee that this is the
 // true gas limit requirement as other transactions may be added or removed by miners, but
 // it should provide a basis for setting a reasonable default.
+// GasEstimator 인터페이스는 대기상태에 따른 특정 트렌젝션을 실행하기 위한
+// 가스를 예측하기 위한 EstimateGas 함수를 포함한다.
 type GasEstimator interface {
 	EstimateGas(ctx context.Context, call CallMsg) (uint64, error)
 }
 
 // A PendingStateEventer provides access to real time notifications about changes to the
 // pending state.
+// PendingStateEventer 인터페이스는 대기상태의 변화에 대한 실시간 알람을 제공한다
 type PendingStateEventer interface {
 	SubscribePendingTransactions(ctx context.Context, ch chan<- *types.Transaction) (Subscription, error)
 }

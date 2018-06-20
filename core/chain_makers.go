@@ -38,6 +38,7 @@ var (
 
 // BlockGen creates blocks for testing.
 // See GenerateChain for a detailed explanation.
+// 블록젠은 테스트를 위한 블록을 생성한다
 type BlockGen struct {
 	i           int
 	parent      *types.Block
@@ -81,6 +82,10 @@ func (b *BlockGen) SetExtra(data []byte) {
 // further limitations on the content of transactions that can be
 // added. Notably, contract code relying on the BLOCKHASH instruction
 // will panic during execution.
+// AddTx는 트렌젝션을 생성된 블록에 더한다. 만약 코인베이스가 셋팅되지 않았다면
+// 블록의 코인베이스는 제로주소로 설정된다
+// 이 함수는 트렌젝션이 실행되지 못할 경우 패닉을 리턴한다.
+// 추가적으로 트렌젝션을 추가에 가스제약같은 추가제한이 있다.
 func (b *BlockGen) AddTx(tx *types.Transaction) {
 	b.AddTxWithChain(nil, tx)
 }
@@ -92,6 +97,10 @@ func (b *BlockGen) AddTx(tx *types.Transaction) {
 // the protocol-imposed limitations (gas limit, etc.), there are some
 // further limitations on the content of transactions that can be
 // added. If contract code relies on the BLOCKHASH instruction,
+// AddTxWithChain는 트렌젝션을 생성된 블록에 더한다. 만약 코인베이스가 셋팅되지 않았다면
+// 블록의 코인베이스는 제로주소로 설정된다
+// 이 함수는 트렌젝션이 실행되지 못할 경우 패닉을 리턴한다.
+// 추가적으로 트렌젝션을 추가에 가스제약같은 추가제한이 있다.
 // the block in chain will be returned.
 func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	if b.gasPool == nil {
@@ -170,6 +179,12 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
+// GenerateChain함수는 n개의 블록의 체인을 만든다. 첫블록의 부모블록은 제공된다.
+// 데이터 베이스는 중간 스테이트를 저장하며 부보의 상태 트라이를 포함해야 한다
+// 이 생성함수는 매 블록마다 새로운 블록 생성자에 의해 불려진다.
+// 생성자에 더해진 모든 트렌젝션과 엉클은 블록의 일부가 된다.
+// 이 함수에 의해 생성된 블록은 아직 유효한 검증 값을 포함하고 있지 않다.
+// 이 블록들을 체인에 넣기 위해서는 fakepow나 유사한 비검증 구현을 이용해야한다
 func GenerateChain(config *params.ChainConfig, parent *types.Block, engine consensus.Engine, db ethdb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
 	if config == nil {
 		config = params.TestChainConfig
@@ -255,6 +270,8 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 // newCanonical creates a chain database, and injects a deterministic canonical
 // chain. Depending on the full flag, if creates either a full block chain or a
 // header only chain.
+// 이함수는 체인 데이터 베이스를 생성하고 캐노니컬 블럭을 삽입한다.
+// full 인자에 따라 풀 블록체인이나 헤더온리 체인을 만든다 
 func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *BlockChain, error) {
 	var (
 		db      = ethdb.NewMemDatabase()
