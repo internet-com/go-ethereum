@@ -307,6 +307,8 @@ func (q *queue) RetrieveHeaders() ([]*types.Header, int) {
 
 // Schedule adds a set of headers for the download queue for scheduling, returning
 // the new headers encountered.
+// schedule함수는 큐의 스케쥴링을 위해 여러개의 헤더들을 다운로드 큐에 더한다.
+// 맞이한 새로운 헤더들을 반환한다
 func (q *queue) Schedule(headers []*types.Header, from uint64) []*types.Header {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -350,6 +352,8 @@ func (q *queue) Schedule(headers []*types.Header, from uint64) []*types.Header {
 
 // Results retrieves and permanently removes a batch of fetch results from
 // the cache. the result slice will be empty if the queue has been closed.
+// Results 함수는 캐시로 부터 페치결과 뭉치를 반환하거나 제거한다
+// 결과 부분은 queue 가 닫힐경우 비워질 것이다
 func (q *queue) Results(block bool) []*fetchResult {
 	q.lock.Lock()
 	defer q.lock.Unlock()

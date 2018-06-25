@@ -166,12 +166,14 @@ func (pm *ProtocolManager) syncer() {
 }
 
 // synchronise tries to sync up our local block chain with a remote peer.
+// synchronise함수는 로컬블록체인을 원격 피어와 동기화 한다
 func (pm *ProtocolManager) synchronise(peer *peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
 		return
 	}
 	// Make sure the peer's TD is higher than our own
+	// 피어의 total difficulty가 나보다 높은지 확인
 	currentBlock := pm.blockchain.CurrentBlock()
 	td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 
@@ -180,9 +182,11 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		return
 	}
 	// Otherwise try to sync with the downloader
+	// 높다면 다운로더를 이용해 sync를 시작한다
 	mode := downloader.FullSync
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
 		// Fast sync was explicitly requested, and explicitly granted
+		// fast sync가 명백히 요구되었고, 명백히 허가됨
 		mode = downloader.FastSync
 	} else if currentBlock.NumberU64() == 0 && pm.blockchain.CurrentFastBlock().NumberU64() > 0 {
 		// The database seems empty as the current block is the genesis. Yet the fast
@@ -190,18 +194,25 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		// The only scenario where this can happen is if the user manually (or via a
 		// bad block) rolled back a fast sync node below the sync point. In this case
 		// however it's safe to reenable fast sync.
+		// 현재가 genesisblock인것과 같이 db가 비어있다.
+		// 아직 fastblock이 앞쪽에 있기 때문에, 특정포인트부터는 fastsync가 enable된다.
+		// 이런일이 일어나는 시나리오는 유저가 매뉴얼하게, 혹은 bad block으로 인해서 
+		// fast sync node를특정 sync point로  롤백했을 경우이다
+		// 그러나 이런경우 fast sync를 다시 켜는것이 안전하다.
 		atomic.StoreUint32(&pm.fastSync, 1)
 		mode = downloader.FastSync
 	}
 
 	if mode == downloader.FastSync {
 		// Make sure the peer's total difficulty we are synchronizing is higher.
+		// 우리가 동기화할 피어의 총난이도가 더 높은지 확인한다 
 		if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
 			return
 		}
 	}
 
 	// Run the sync cycle, and disable fast sync if we've went past the pivot block
+	// 싱크 사이클을 시작하고, 만약 피봇블록을 지나갈경우 fast sync를 중지한다
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
 		return
 	}

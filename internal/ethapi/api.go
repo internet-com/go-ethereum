@@ -78,6 +78,15 @@ func (s *PublicEthereumAPI) ProtocolVersion() hexutil.Uint {
 // - highestBlock:  block number of the highest block header this node has received from peers
 // - pulledStates:  number of state entries processed until now
 // - knownStates:   number of known state entries that still need to be pulled
+// syncing함수는 노드가 현재 싱크중이지 않은경우 false를 리턴한다. 
+// 피어에게 수신한 블록헤더들은 최신일수도 있고, 아닐수도 있다
+// 싱크가 진행중일 경우 
+// 시작블록: 노드가 싱크를 시작한 블록번호
+// 현재블록: 현재 이노드가 수신중인 블록번호
+// 최고높이블록: 이노드가 피어들로 부터 수신한 블록헤더중 최고 높은 블록번호
+// 수신상태: 현재까지 처리된 상태 목록의 수
+// 알려진상태: 아직 수신이 필요한 알려진 상태 목록의 수
+// @sigmoid: geth commnad에서 eth.syncing 함수 호출시 호출되는 함수입니다.
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	progress := s.b.Downloader().Progress()
 

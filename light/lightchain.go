@@ -360,6 +360,11 @@ func (self *LightChain) postChainEvents(events []interface{}) {
 //
 // In the case of a light chain, InsertHeaderChain also creates and posts light
 // chain events when necessary.
+// InsertHeaderChain함수는 주어진 헤더를 로컬체인에 넣고, 재구성을  생성하기도 한다
+// 만약 에러가 리턴될경우 실패한 헤더의 번호를 반환한다.
+// 파라미터 검증은 nonce 검증여부를 위한 파인튠으로 사용될 수 있다.
+// 이러한 선택전 검증은 몇몇 헤더반환 매커니즘이 이미 논스를 검증할뿐만아니라 논스가 부분적으로
+// 검증될수도 있기 때문에 각각을 검증할 필요가 없기때문이다.
 func (self *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
 	start := time.Now()
 	if i, err := self.hc.ValidateHeaderChain(chain, checkFreq); err != nil {

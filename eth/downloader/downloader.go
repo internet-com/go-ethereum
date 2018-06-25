@@ -244,6 +244,13 @@ func New(mode SyncMode, stateDb ethdb.Database, mux *event.TypeMux, chain BlockC
 // In addition, during the state download phase of fast synchronisation the number
 // of processed and the total number of known states are also returned. Otherwise
 // these are zero.
+// progress함수는 동기중인 경계를 반환한다, 특히 동기화가 시작된 원조블록,
+// 현재 동기중인 블록이나 블록헤더, 동기화 대상들의 최신의 알려진 블록.
+// 추가적으로 빠른 싱크의 state 다운로드때는
+// 현재까지 처리된 스테이트의 번호와 알려진 스테이트의 총값이 리턴된다.
+// 빠른 싱크가아니면 제로를 리턴한다
+
+// geth commnad: eth.syncing 함수 호출시 호출된다.
 func (d *Downloader) Progress() ethereum.SyncProgress {
 	// Lock the current stats and return the progress
 	d.syncStatsLock.RLock()
@@ -470,9 +477,14 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 	}
 
 	fetchers := []func() error{
+		// 지정된 피어로부터 헤더를 수신함
 		func() error { return d.fetchHeaders(p, origin+1, pivot) }, // Headers are always retrieved
+		// 아무 피어로부터 블록바디를 수신함
 		func() error { return d.fetchBodies(origin + 1) },          // Bodies are retrieved during normal and fast sync
+		// 아무 피어로부터 영수증을 수신함
 		func() error { return d.fetchReceipts(origin + 1) },        // Receipts are retrieved during fast sync
+		// 수신한 헤더를 프로세스 큐에 넣고 스케쥴링함 
+		// 스케쥴링이란 노드 내에서 벌어지는 일련의 일을 우선순위 큐로 관리하는 것을 말함
 		func() error { return d.processHeaders(origin+1, pivot, td) },
 	}
 	if d.mode == FastSync {
@@ -553,6 +565,8 @@ func (d *Downloader) Terminate() {
 
 // fetchHeight retrieves the head header of the remote peer to aid in estimating
 // the total time a pending synchronisation would take.
+// fetchHeight 함수는 원격피어의 헤드헤더를 반환한다
+// 동기화시간을 예측하기 위해서
 func (d *Downloader) fetchHeight(p *peerConnection) (*types.Header, error) {
 	p.log.Debug("Retrieving remote chain height")
 
@@ -599,8 +613,13 @@ func (d *Downloader) fetchHeight(p *peerConnection) (*types.Header, error) {
 // on the correct chain, checking the top N links should already get us a match.
 // In the rare scenario when we ended up on a long reorganisation (i.e. none of
 // the head links match), we do a binary search to find the common ancestor.
+// findAncestor 함수는 원격피어들의 체인과 로컬체인의 공통 조상 연결을 잡으려 노력한다.
+// 일반적인 경우, 우리 노드가 정상적인 체인에서 동기중이라면 위쪽으로 N개만큼의 링크에서
+// 매치가 발생할 것이다. 그러나 오래걸리는 흔하지 않은 경우에는
+//(헤드링크가 매치되지 않는 경우) 바이너리 서치로 공통 조상을 찾을 것이다.
 func (d *Downloader) findAncestor(p *peerConnection, height uint64) (uint64, error) {
 	// Figure out the valid ancestor range to prevent rewrite attacks
+	// rewrite attack을 방지하기 위해 유효한 조상의 범위를 확인한다
 	floor, ceil := int64(-1), d.lightchain.CurrentHeader().Number.Uint64()
 
 	if d.mode == FullSync {
@@ -771,6 +790,13 @@ func (d *Downloader) findAncestor(p *peerConnection, height uint64) (uint64, err
 // other peers are only accepted if they map cleanly to the skeleton. If no one
 // can fill in the skeleton - not even the origin peer - it's assumed invalid and
 // the origin is dropped.
+// fetchHeaders 함수는 throttling이 발생가능한 경우 
+// 요청된 수만큼의  반환된 해더를 더이상 반환되지 않을때까지 동시에 저장한다.
+// 병렬처리를 가능케하면서도 악의적인 노드가 나쁜 헤더를 보내는것에 대응하기 위해서
+// 우리는 우리가 동기화하는 원본피어를 이용해 헤더체인의 스켈레톤을 만들고
+// 헤더를 채운다. 다른 피어로부터 온 해더들은 스켈레톤 체인과 정확하게 맞을 경우 수락된다
+// 만약 아무도 스켈레톤을 채우지 못할경우, 무효화로 가정하고 원본은 끊긴다.
+// MaxHeaderFetch = 192
 func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, pivot uint64) error {
 	p.log.Debug("Directing header downloads", "origin", from)
 	defer p.log.Debug("Header download terminated")
@@ -934,6 +960,8 @@ func (d *Downloader) fillHeaderSkeleton(from uint64, skeleton []*types.Header) (
 // fetchBodies iteratively downloads the scheduled block bodies, taking any
 // available peers, reserving a chunk of blocks for each, waiting for delivery
 // and also periodically checking for timeouts.
+// fetchBodies 함수는 스케쥴된 블록의 몸체를 가능한 아무 피어로부터 반복적으로 다운로드하고
+// 각 피어에 대한 블록덩어리를 예약하고 수신을 기다리고 주기적으로 타임아웃을 체크한다
 func (d *Downloader) fetchBodies(from uint64) error {
 	log.Debug("Downloading block bodies", "origin", from)
 
@@ -958,6 +986,8 @@ func (d *Downloader) fetchBodies(from uint64) error {
 // fetchReceipts iteratively downloads the scheduled block receipts, taking any
 // available peers, reserving a chunk of receipts for each, waiting for delivery
 // and also periodically checking for timeouts.
+// fetchReceipts함수는 반복적으로 스케쥴된 블록의 영수증 아무 가능한 피어로 부터 다운로드하고
+// 각 피어를 위한 영수증 덩어리를 준비하고 전달을 기다리면서 주기적으로 타임아웃을 체크한다 
 func (d *Downloader) fetchReceipts(from uint64) error {
 	log.Debug("Downloading transaction receipts", "origin", from)
 
@@ -1167,8 +1197,9 @@ func (d *Downloader) fetchParts(errCancel error, deliveryCh chan dataPack, deliv
 // processHeaders takes batches of retrieved headers from an input channel and
 // keeps processing and scheduling them into the header chain and downloader's
 // queue until the stream ends or a failure occurs.
-// proessHeaders 인풋채널로 반환된 여러개의 해더를 
-// 프로세싱하고 다운로드 큐에 스케쥴링한다 
+// proessHeaders함수는 인풋채널로 반환된 여러개의 해더를 받아 처리하면서
+// 오류가 발생하거나 연결전송이 끊길때까지
+// 헤더들을 헤더체인과 다운로더의 큐에 스케쥴링한다 
 func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) error {
 	// Keep a count of uncertain headers to roll back
 	rollback := []*types.Header{}
@@ -1335,6 +1366,7 @@ func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) er
 }
 
 // processFullSyncContent takes fetch results from the queue and imports them into the chain.
+// processFullSyncContent 함수는 큐로부터 결과덩어리를 받아 체인에 넣는다
 func (d *Downloader) processFullSyncContent() error {
 	for {
 		results := d.queue.Results(true)
@@ -1379,9 +1411,12 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 
 // processFastSyncContent takes fetch results from the queue and writes them to the
 // database. It also controls the synchronisation of state nodes of the pivot block.
+// processFastSyncContent 함수는 큐로부터 fetch 결과들을 받아 DB에 쓴다
+// 또한 피봇블록의 상태노드의 동기를 컨트롤한다.
 func (d *Downloader) processFastSyncContent(latest *types.Header) error {
 	// Start syncing state of the reported head block. This should get us most of
 	// the state of the pivot block.
+	// 보고된 헤드블록의 상태를 동기화 하기 시작한다.
 	stateSync := d.syncState(latest.Root)
 	defer stateSync.Cancel()
 	go func() {
@@ -1391,6 +1426,8 @@ func (d *Downloader) processFastSyncContent(latest *types.Header) error {
 	}()
 	// Figure out the ideal pivot block. Note, that this goalpost may move if the
 	// sync takes long enough for the chain head to move significantly.
+	// 이상적인 피봇블록을 찾는다. 이 목적지는 만약 싱크가 오래걸려 체인 헤드가 
+	// 심각하게 멀어질경우 옮겨질수 있다.
 	pivot := uint64(0)
 	if height := latest.Number.Uint64(); height > uint64(fsMinFullBlocks) {
 		pivot = height - uint64(fsMinFullBlocks)
@@ -1404,6 +1441,8 @@ func (d *Downloader) processFastSyncContent(latest *types.Header) error {
 	for {
 		// Wait for the next batch of downloaded data to be available, and if the pivot
 		// block became stale, move the goalpost
+		// 다운로드된 다음 데이터 뭉치가 사용가능할때까지 기다린다.
+		// pivot block이 오래되면, 골대를 옮긴다.
 		results := d.queue.Results(oldPivot == nil) // Block if we're not monitoring pivot staleness
 		if len(results) == 0 {
 			// If pivot sync is done, stop

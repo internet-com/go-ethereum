@@ -58,6 +58,7 @@ type stateSyncStats struct {
 }
 
 // syncState starts downloading state with the given root hash.
+// 주어진 루트해시로 부터 state를 다운로드 하기 시작한다
 func (d *Downloader) syncState(root common.Hash) *stateSync {
 	s := newStateSync(d, root)
 	select {
@@ -237,6 +238,8 @@ type stateTask struct {
 
 // newStateSync creates a new state trie download scheduler. This method does not
 // yet start the sync. The user needs to call run to initiate.
+// newStateSync함수는 새로운 상태 트라이 다운로드 스케쥴러를 만든다
+// 아직 싱크가 시작한 상태는 아니고,실행을 위해 유저가 run을 호출해야한다.
 func newStateSync(d *Downloader, root common.Hash) *stateSync {
 	return &stateSync{
 		d:       d,
