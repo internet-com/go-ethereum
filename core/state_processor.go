@@ -39,6 +39,7 @@ type StateProcessor struct {
 }
 
 // NewStateProcessor initialises a new StateProcessor.
+// NewStateProcessor함수는 새로운 상태처리자를 초기화한다
 func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consensus.Engine) *StateProcessor {
 	return &StateProcessor{
 		config: config,
@@ -54,10 +55,11 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-// 이 함수는 이더리움 룰에 따라 state db를 이용한 트렌젝션 메시지 실행과
-// 실행에 따른 코인베이스의 보상과 엉클블록을 처리한 것에 대한 보상을 처리한다
-// 이 하무는 영수증과 프로세스에 사용된 가스사용량의 누적로그를 리턴한다
-// 가스때문에 실행에 실패한 트렌젝션은 에러를 리턴한다
+// Process함수는 statedb를 이용하여 트렌젝션 메시지를 실행함으로서 
+// 이더리움 룰에 따른 상태의 변화들을 처리하고
+// 생성자와 포함된 모든 엉클들에게 보상을 적용한다
+// Process함수는 처리과정동안 발생한 영수증과 로그들을 누적하고 그동안 사용된 가스의 량을 반환한다
+// 만약 어떤 트렌젝션이 가스가 모자라 실행에 실패할 경우 에러를 반환한다
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	var (
 		receipts types.Receipts
@@ -71,6 +73,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		misc.ApplyDAOHardFork(statedb)
 	}
 	// Iterate over and process the individual transactions
+	// 각각의 트젠젝션을 반복하며 처리한다
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
@@ -81,6 +84,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
+	// 블록을 최종화하고 합의 엔진 특성에 따른 엑스트라 데이터를 적용한다 (block rewards같은것)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 
 	return receipts, allLogs, *usedGas, nil
@@ -90,28 +94,31 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-/*
-이 함수는 주어진 스테이트 DB에 트렌젝션을 적용하고,
-인자로 전달된 파라미터를 사용하기 위한 함수이다.
-트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
-트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
-*/
+
+// ApplyTransaction  함수는 주어진 스테이트 DB에 트렌젝션을 적용하고,
+// 인자로 전달된 파라미터를 EVM환경에서 사용하기 위한 함수이다.
+// 트렌젝션의 영수증과 가스사용량과 에러상태를 반환하며
+// 트렌젝션이 실패할경우 블록이 검증되지 않았음을 지시한다
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, 0, err
 	}
 	// Create a new context to be used in the EVM environment
+	// EVM환경에서 사용될 컨텍스트를 생성한다
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
+	// 트렌젝션과 호출 메커니즘에 대한 관련정보를 저장할 새로운 환경을 생성한다
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 	// Apply the transaction to the current state (included in the env)
+	// 트렌젝션을 환경에 저장된 현재 상태에 적용한다
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, 0, err
 	}
 	// Update the state with pending changes
+	// 대기 상태의 변화들을 이용하여 상태를 업데이트 한다
 	var root []byte
 	if config.IsByzantium(header.Number) {
 		statedb.Finalise(true)

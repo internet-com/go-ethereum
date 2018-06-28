@@ -103,6 +103,9 @@ func (in *Interpreter) enforceRestrictions(op OpCode, operation operation, stack
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
 // errExecutionReverted which means revert-and-keep-gas-left.
+// Run함수는 반복적으로 계약의 코드를 주어진 잇풋과 함께 평가하고 바이트 덩이를 리턴한다
+// 인터프리터에 의해 반환되는 모든 에러는 revert & consume all gas로 고려되어야 한다
+// revert and keep gas left를 의미하는 errExecutionReverted 를 제외하고
 func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err error) {
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
@@ -199,6 +202,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		}
 
 		// execute the operation
+		// operation을 실행한다
 		res, err := operation.execute(&pc, in.evm, contract, mem, stack)
 		// verifyPool is a build flag. Pool verification makes sure the integrity
 		// of the integer pool by comparing values to a default value.

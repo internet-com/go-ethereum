@@ -177,6 +177,7 @@ func (ethash *Ethash) verifyHeaderWorker(chain consensus.ChainReader, headers []
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of the stock Ethereum ethash engine.
+// VerifyUncles함수는 주어진 블록의 엉클들이 상용 이더리움 해시 엔진의 룰을 따르는지 확인한다
 func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
 	// If we're running a full engine faking, accept any input as valid
 	if ethash.config.PowMode == ModeFullFake {
@@ -187,9 +188,11 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 		return errTooManyUncles
 	}
 	// Gather the set of past uncles and ancestors
+	// 과거 엉클과 조상들의 정보셋을 모은다
 	uncles, ancestors := set.New(), make(map[common.Hash]*types.Header)
 
 	number, parent := block.NumberU64()-1, block.ParentHash()
+	// @sigmoid: GHOST protocol: 7블록 보다 가까운 조상을 체크합니다.
 	for i := 0; i < 7; i++ {
 		ancestor := chain.GetBlock(parent, number)
 		if ancestor == nil {
@@ -205,6 +208,7 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 	uncles.Add(block.Hash())
 
 	// Verify each of the uncles that it's recent, but not an ancestor
+	// 각각의 엉클이 최신이면서 조상이 아닌지 검증한다
 	for _, uncle := range block.Uncles() {
 		// Make sure every uncle is rewarded only once
 		hash := uncle.Hash()
@@ -230,12 +234,16 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
 // See YP section 4.3.4. "Block Header Validity"
+// verifyHeader함수는 헤더가 이더리움 합의 엔진의 룰을 따르는지 확인한다
+// 옐로우페이퍼 섹션 4.3.4 "Block Header Validity"
 func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *types.Header, uncle bool, seal bool) error {
 	// Ensure that the header's extra-data section is of a reasonable size
+	// 헤더의 엑스트라 데이터가 리즈너블한 사이즈인지 확인한다
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
 	}
 	// Verify the header's timestamp
+	// 헤더의 타임스템프를 확인한다
 	if uncle {
 		if header.Time.Cmp(math.MaxBig256) > 0 {
 			return errLargeBlockTime
@@ -249,6 +257,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 		return errZeroBlockTime
 	}
 	// Verify the block's difficulty based in it's timestamp and parent's difficulty
+	// 블록의 난이도가 타임스템프와 부모의 난이도를 기반으로 했는지 확인한다
 	expected := ethash.CalcDifficulty(chain, header.Time.Uint64(), parent)
 
 	if expected.Cmp(header.Difficulty) != 0 {
@@ -275,10 +284,13 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 		return fmt.Errorf("invalid gas limit: have %d, want %d += %d", header.GasLimit, parent.GasLimit, limit)
 	}
 	// Verify that the block number is parent's +1
+	// 블록넘버가 부모의 번호의 +1 인지 확인한다
 	if diff := new(big.Int).Sub(header.Number, parent.Number); diff.Cmp(big.NewInt(1)) != 0 {
 		return consensus.ErrInvalidNumber
 	}
 	// Verify the engine specific seal securing the block
+	// 합의엔진에 따른 seal이 안전한지 확인한다
+	// @sigmoid: 주어진 블록이 PoW 난이도 요구사항을 만족하는지 체크한다
 	if seal {
 		if err := ethash.VerifySeal(chain, header); err != nil {
 			return err
@@ -297,6 +309,9 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 // CalcDifficulty is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time
 // given the parent block's time and difficulty.
+// CalcDifficulty 함수는 난이도 조정 알고리즘이다. 이 함수는 새 블록 생성시 
+// 반드시 가져야 하는 난이도를 주어진 부모 블록의 시간과 난이도를 기반으로 반환한다
+
 func (ethash *Ethash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
 	return CalcDifficulty(chain.Config(), time, parent)
 }
@@ -304,6 +319,8 @@ func (ethash *Ethash) CalcDifficulty(chain consensus.ChainReader, time uint64, p
 // CalcDifficulty is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time
 // given the parent block's time and difficulty.
+// CalcDifficulty 함수는 난이도 조정 알고리즘이다. 이 함수는 새 블록 생성시 
+// 반드시 가져야 하는 난이도를 주어진 부모 블록의 시간과 난이도를 기반으로 반환한다
 func CalcDifficulty(config *params.ChainConfig, time uint64, parent *types.Header) *big.Int {
 	next := new(big.Int).Add(parent.Number, big1)
 	switch {
@@ -330,6 +347,9 @@ var (
 // calcDifficultyByzantium is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time given the
 // parent block's time and difficulty. The calculation uses the Byzantium rules.
+// CalcDifficultyByzantium 함수는 난이도 조정 알고리즘이다. 이 함수는 새 블록 생성시 
+// 반드시 가져야 하는 난이도를 주어진 부모 블록의 시간과 난이도를 기반으로 반환한다
+// 비잔티움 룰을 사용한다
 func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
 	// https://github.com/ethereum/EIPs/issues/100.
 	// algorithm:
@@ -389,6 +409,9 @@ func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
 // calcDifficultyHomestead is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time given the
 // parent block's time and difficulty. The calculation uses the Homestead rules.
+// CalcDifficultyHomestead 함수는 난이도 조정 알고리즘이다. 이 함수는 새 블록 생성시 
+// 반드시 가져야 하는 난이도를 주어진 부모 블록의 시간과 난이도를 기반으로 반환한다
+// 홈스테드 룰을 사용한다
 func calcDifficultyHomestead(time uint64, parent *types.Header) *big.Int {
 	// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2.md
 	// algorithm:
@@ -438,6 +461,9 @@ func calcDifficultyHomestead(time uint64, parent *types.Header) *big.Int {
 // calcDifficultyFrontier is the difficulty adjustment algorithm. It returns the
 // difficulty that a new block should have when created at time given the parent
 // block's time and difficulty. The calculation uses the Frontier rules.
+// CalcDifficultyFrontier 함수는 난이도 조정 알고리즘이다. 이 함수는 새 블록 생성시 
+// 반드시 가져야 하는 난이도를 주어진 부모 블록의 시간과 난이도를 기반으로 반환한다
+// 프론티어 룰을 사용한다
 func calcDifficultyFrontier(time uint64, parent *types.Header) *big.Int {
 	diff := new(big.Int)
 	adjust := new(big.Int).Div(parent.Difficulty, params.DifficultyBoundDivisor)
@@ -470,6 +496,8 @@ func calcDifficultyFrontier(time uint64, parent *types.Header) *big.Int {
 
 // VerifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW difficulty requirements.
+// VerifySeal 함수는 컨센서스 엔진을 구현하고 
+// 주어진 블록이 PoW 난이도 요구사항을 만족하는지 체크한다
 func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
 	// If we're running a fake PoW, accept any seal as valid
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
@@ -512,7 +540,7 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the ethash protocol. The changes are done inline.
-//이 함수는 합의엔진을 구현한다. 헤더가 ethash 프로토콜을 따르도록 난이도 필드를 초기화 한다.
+// Prepare 함수는 합의엔진을 구현한다. 헤더가 ethash 프로토콜을 따르도록 난이도 필드를 초기화 한다.
 func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
@@ -524,8 +552,8 @@ func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header)
 
 // Finalize implements consensus.Engine, accumulating the block and uncle rewards,
 // setting the final state and assembling the block.
-// 이 함수는 컨센서스 엔진을 구현한다. 
-// 블록을 누적하고 엉클 리워드를 하고 최종 상태를 설정하고 블록을 조립한다
+// Finalize 함수는 합의 엔진을 구현한다. 
+// 블록과 엉클 리워드를 누적하고 최종 상태를 설정하고 블록을 조립한다
 func (ethash *Ethash) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// Accumulate any block and uncle rewards and commit the final state root
 	accumulateRewards(chain.Config(), state, header, uncles)
@@ -544,6 +572,8 @@ var (
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
+// AccumulateRewares 함수는 블록을 마이닝한 코인베이스에 보상으로 크레딧을 준다
+// 전체 보상은 정적인 블록 보상과 엉클을 보함한 보상이다. 각 엉클블락의 코인베이스도 보상받는다
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward

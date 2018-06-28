@@ -39,27 +39,35 @@ const (
 )
 
 // Database wraps access to tries and contract code.
+// Database인터페이스는 trie들과 계약 코드를 접근하는 메소드들을 포함한다
 type Database interface {
 	// OpenTrie opens the main account trie.
+	// OpenTrie함수는 메인 계정 트라이를 연다
 	OpenTrie(root common.Hash) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
+	// OpenStorageTrie함수는 계정의 스토리지 트라이를 연다
 	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
 
 	// CopyTrie returns an independent copy of the given trie.
+	// CopyTrie 함수는 주어진 트라이의 독립적인 사본을 반환한다
 	CopyTrie(Trie) Trie
 
 	// ContractCode retrieves a particular contract's code.
+	// ContractCode함수는 특정 계약의 코드를 반환한다
 	ContractCode(addrHash, codeHash common.Hash) ([]byte, error)
 
 	// ContractCodeSize retrieves a particular contracts code's size.
+	// ContractCodeSize함수는 특정 계약 코드의 길이를 반환한다
 	ContractCodeSize(addrHash, codeHash common.Hash) (int, error)
 
 	// TrieDB retrieves the low level trie database used for data storage.
+	// TireDB함수는 데이터를 저장하는데 사용될 저수준의 트라이 DB를 반환한다
 	TrieDB() *trie.Database
 }
 
 // Trie is a Ethereum Merkle Trie.
+// Tire는 이더리움 머클트리이다
 type Trie interface {
 	TryGet(key []byte) ([]byte, error)
 	TryUpdate(key, value []byte) error
@@ -75,6 +83,9 @@ type Trie interface {
 // concurrent use and retains cached trie nodes in memory. The pool is an optional
 // intermediate trie-node memory pool between the low level storage layer and the
 // high level trie abstraction.
+// NewDatabase함수는 상태를 저장하기 위핸 저장소를 생성한다
+// 반환된 DB는 동시 사용과 메모리의 캐싱된 트라이 노드들을 유지하기에 안전하다
+// Pool은 저수준 저장 계층과 고수준 트라이 추상화 사이의 임시적인 트라이 노드 메모리 풀 이다
 func NewDatabase(db ethdb.Database) Database {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &cachingDB{
@@ -121,11 +132,13 @@ func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
 }
 
 // OpenStorageTrie opens the storage trie of an account.
+// OpenStroageTrie 함수는 계정의 저장소 트라이를 연다
 func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
 	return trie.NewSecure(root, db.db, 0)
 }
 
 // CopyTrie returns an independent copy of the given trie.
+// CopyTrie 함수는 주어진 트라이의 독립적인 사본을 반환한다
 func (db *cachingDB) CopyTrie(t Trie) Trie {
 	switch t := t.(type) {
 	case cachedTrie:
@@ -138,6 +151,7 @@ func (db *cachingDB) CopyTrie(t Trie) Trie {
 }
 
 // ContractCode retrieves a particular contract's code.
+// ContractCode함수는 특정 계약의 코드를 반환한다
 func (db *cachingDB) ContractCode(addrHash, codeHash common.Hash) ([]byte, error) {
 	code, err := db.db.Node(codeHash)
 	if err == nil {
@@ -147,6 +161,7 @@ func (db *cachingDB) ContractCode(addrHash, codeHash common.Hash) ([]byte, error
 }
 
 // ContractCodeSize retrieves a particular contracts code's size.
+// ContractCodeSize함수는 특정 계약 코드의 길이를 반환한다
 func (db *cachingDB) ContractCodeSize(addrHash, codeHash common.Hash) (int, error) {
 	if cached, ok := db.codeSizeCache.Get(codeHash); ok {
 		return cached.(int), nil
@@ -156,11 +171,14 @@ func (db *cachingDB) ContractCodeSize(addrHash, codeHash common.Hash) (int, erro
 }
 
 // TrieDB retrieves any intermediate trie-node caching layer.
+// TireDB함수는 캐싱 레이어의 중간단계 트라이노드를 모두 반환한다
+// TireDB함수는 데이터를 저장하는데 사용될 저수준의 트라이 DB를 반환한다
 func (db *cachingDB) TrieDB() *trie.Database {
 	return db.db
 }
 
 // cachedTrie inserts its trie into a cachingDB on commit.
+// cachedTrie는 commiit때 자신의 트라이를 캐싱DB에 삽입한다
 type cachedTrie struct {
 	*trie.SecureTrie
 	db *cachingDB

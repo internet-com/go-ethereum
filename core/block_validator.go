@@ -27,9 +27,9 @@ import (
 
 // BlockValidator is responsible for validating block headers, uncles and
 // processed state.
-//
+// BlockValidator는 블록헤더와 엉클을 검증하고 스테이트를 처리해야한다
+
 // BlockValidator implements Validator.
-// 블록 검증자는 블록의 헤더와 엉클블락들과 처리된 스테이트를 검증해야한다
 type BlockValidator struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
@@ -50,8 +50,8 @@ func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engin
 // ValidateBody validates the given block's uncles and verifies the the block
 // header's transaction and uncle roots. The headers are assumed to be already
 // validated at this point.
-// 이함수는 주어진 블록의 엉클및 블록헤더의 트렌젝션과 엉클루트를 검증한다
-// 이시점의 헤더는 이미 검증되어다고 가정한다
+// ValidateBody함수는 주어진 블록의 엉클을 검증하고, 블록헤더의 트렌젝션과 엉클 루트를 확정한다.
+// 헤더는 이미 검증되었다고 가정한다
 func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
@@ -64,6 +64,7 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 		return consensus.ErrPrunedAncestor
 	}
 	// Header validity is known at this point, check the uncles and transactions
+	// 헤더의 검증여부는 이미 알려졌고, 엉클과 트렌젝션을 체크한다
 	header := block.Header()
 	if err := v.engine.VerifyUncles(v.bc, block); err != nil {
 		return err
@@ -82,7 +83,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
 // 이 함수는 상태 변화후 가스사용량이나 영수증/상태 루트같은 여러가지 변화를 검증한다.
-// 이 함수는 검증이 성공할 경우 데이터베이스 배치를 반환한다
+// 이 함수는 검증이 성공할 경우 데이터베이스 집단을  반환한다
+// @sigmoid: 코드상으로 보면 에러만 반환하도록 되어있음 주석 변경 필요
 func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	header := block.Header()
 	if block.GasUsed() != usedGas {
@@ -109,7 +111,7 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 
 // CalcGasLimit computes the gas limit of the next block after parent.
 // This is miner strategy, not consensus protocol.
-// 이함수는 부모 다음 블록의 가스 한도를 계산한다
+// CalcGasLimit 함수는 부모 다음 블록의 가스 한도를 계산한다
 // 이것은 마이닝 정책이지 합의 프로토콜이 아니다
 func CalcGasLimit(parent *types.Block) uint64 {
 	// contrib = (parentGasUsed * 3 / 2) / 1024
@@ -125,6 +127,10 @@ func CalcGasLimit(parent *types.Block) uint64 {
 		at that usage) the amount increased/decreased depends on how far away
 		from parentGasLimit * (2/3) parentGasUsed is.
 	*/
+	// strategy: 마이닝할 블록의 가스제한은 부모가 사용한 가스의 량을 기반으로 설정된다
+	// 만약 부모가 사용한 가스가 부모의 가스 한도의 2/3을 넘는다면 증가시키고,
+	// 반대로는 감소시키거나 적합하다면 유지시킨다
+	// 증감량은 부모의 가스 가스 사용량이 가스 한도의 2/3을 얼마나 넘었는지에 달려있다
 	limit := parent.GasLimit() - decay + contrib
 	if limit < params.MinGasLimit {
 		limit = params.MinGasLimit

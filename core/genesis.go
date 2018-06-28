@@ -44,7 +44,8 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
 // fork switch-over blocks through the chain configuration.
-// 제네시스 구조체는 헤더필드 와 제네시스 블록의상태를 정의한다
+// 제네시스 구조체는 헤더필드와 제네시스 블록의 상태를 정의한다
+// 또한 체인 설정에 따라 하드포크 변환블록을 정의한다
 type Genesis struct {
 	Config     *params.ChainConfig `json:"config"`
 	Nonce      uint64              `json:"nonce"`
@@ -64,7 +65,7 @@ type Genesis struct {
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
-// 이타입은 제네시스 블록의 일부의 초기상태를 정의한다.
+// GenesisAlloc 타입은 제네시스 블록 일부의 초기상태를 정의한다.
 type GenesisAlloc map[common.Address]GenesisAccount
 
 func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
@@ -80,6 +81,7 @@ func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
 }
 
 // GenesisAccount is an account in the state of the genesis block.
+// GenesisAccount는 제네시스 블록의 상태에 있는 어카운트이다
 type GenesisAccount struct {
 	Code       []byte                      `json:"code,omitempty"`
 	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
@@ -156,7 +158,7 @@ func (e *GenesisMismatchError) Error() string {
 // DB가 비었을때 사용할 제네시스 블록.
 // 기본적으로 비어있으므로 이더리움 메인넷 블록이 사용될것이다
 func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
-	//제네시스 블록이 넘어왔을경우 - 일단 패스
+	//제네시스 블록이 넘어왔을 경우
 	if genesis != nil && genesis.Config == nil {
 		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
@@ -233,6 +235,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
+// ToBlcok함수는 제네시스 블록을 생성하고 제네시스 제네시스에 정의된  state를 주어진 DB에 쓴다
 func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	if db == nil {
 		db = ethdb.NewMemDatabase()
@@ -274,6 +277,8 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
+// Commit 함수는 블록과 제네시스 정의의 상태를 DB에 쓴다
+// 이 블록은 캐노니컬 헤드 블록으로 쓰여질 것이다
 func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	block := g.ToBlock(db)
 	if block.Number().Sign() != 0 {
@@ -296,6 +301,8 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 
 // MustCommit writes the genesis block and state to db, panicking on error.
 // The block is committed as the canonical head block.
+// MustCommit 함수는 제네새스 블록과 상태를 DB에 쓴고 에러시 패닉이 발생한다
+// 이 블록은 캐노니컬 헤드 블록으로 쓰여질 것이다
 func (g *Genesis) MustCommit(db ethdb.Database) *types.Block {
 	block, err := g.Commit(db)
 	if err != nil {
@@ -305,12 +312,14 @@ func (g *Genesis) MustCommit(db ethdb.Database) *types.Block {
 }
 
 // GenesisBlockForTesting creates and writes a block in which addr has the given wei balance.
+// GenesisBlockForTesting함수는 주어진 잔고를 가진 계정의 블록을 생성하고 쓴다
 func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big.Int) *types.Block {
 	g := Genesis{Alloc: GenesisAlloc{addr: {Balance: balance}}}
 	return g.MustCommit(db)
 }
 
 // DefaultGenesisBlock returns the Ethereum main net genesis block.
+// DefaultGenesisBlcok 함수는 이더리움 메인넷 제네시스 블록을 반환한다
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.MainnetChainConfig,
@@ -323,6 +332,7 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // DefaultTestnetGenesisBlock returns the Ropsten network genesis block.
+// DefaultTestnetGenesisBlcok 함수는 롭스텐 네트워크의 제네시스 블록을 반환한다
 func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.TestnetChainConfig,
@@ -335,6 +345,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 }
 
 // DefaultRinkebyGenesisBlock returns the Rinkeby network genesis block.
+// DefaultRinkebyGenesisBlcok 함수는 Rinkeby 네트워크의 제네시스 블록을 반환한다
 func DefaultRinkebyGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.RinkebyChainConfig,
@@ -348,6 +359,8 @@ func DefaultRinkebyGenesisBlock() *Genesis {
 
 // DeveloperGenesisBlock returns the 'geth --dev' genesis block. Note, this must
 // be seeded with the
+// DeveloperGenesisBlcok함수는 "geth --dev" 제네시스 블록을 반환한다.
+// 반드시 시드가 있어야 한다
 func DeveloperGenesisBlock(period uint64, faucet common.Address) *Genesis {
 	// Override the default period to the user requested one
 	config := *params.AllCliqueProtocolChanges

@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+// 이 패키지는 test helper 패키지이다
+// 다양한 테스트 패키지에서 블록을 생성할때 사용함
+// @sigmoid: mining을 하지 않아도 블록을 생성할 수 있음
+
+
 package core
 
 import (
@@ -38,7 +43,8 @@ var (
 
 // BlockGen creates blocks for testing.
 // See GenerateChain for a detailed explanation.
-// 블록젠은 테스트를 위한 블록을 생성한다
+// 블록젠은 테스트를 위한 블록들을 생성한다
+// 자세한 설명은 GenerateChain을 보라
 type BlockGen struct {
 	i           int
 	parent      *types.Block
@@ -58,6 +64,8 @@ type BlockGen struct {
 
 // SetCoinbase sets the coinbase of the generated block.
 // It can be called at most once.
+// SetCoinBase함수는 생성된 블록의 코인베이스를 설정한다
+// 한번만 불릴수 있다
 func (b *BlockGen) SetCoinbase(addr common.Address) {
 	if b.gasPool != nil {
 		if len(b.txs) > 0 {
@@ -70,6 +78,7 @@ func (b *BlockGen) SetCoinbase(addr common.Address) {
 }
 
 // SetExtra sets the extra data field of the generated block.
+// SetExtra 함수는 생성된 블록의 extra data 필드를 설정한다
 func (b *BlockGen) SetExtra(data []byte) {
 	b.header.Extra = data
 }
@@ -84,8 +93,11 @@ func (b *BlockGen) SetExtra(data []byte) {
 // will panic during execution.
 // AddTx는 트렌젝션을 생성된 블록에 더한다. 만약 코인베이스가 셋팅되지 않았다면
 // 블록의 코인베이스는 제로주소로 설정된다
+
 // 이 함수는 트렌젝션이 실행되지 못할 경우 패닉을 리턴한다.
-// 추가적으로 트렌젝션을 추가에 가스제약같은 추가제한이 있다.
+// 프로토콜적인 제약(가스 한도)에 추가적으로 트렌젝션 내용에 대한 
+// 추가적인 제약이 좀더 있을수 있다
+// 특히, 블록해시 명령어가 포함된 계약코드의 경우 실행중 패닉이 난다
 func (b *BlockGen) AddTx(tx *types.Transaction) {
 	b.AddTxWithChain(nil, tx)
 }
@@ -100,8 +112,9 @@ func (b *BlockGen) AddTx(tx *types.Transaction) {
 // AddTxWithChain는 트렌젝션을 생성된 블록에 더한다. 만약 코인베이스가 셋팅되지 않았다면
 // 블록의 코인베이스는 제로주소로 설정된다
 // 이 함수는 트렌젝션이 실행되지 못할 경우 패닉을 리턴한다.
-// 추가적으로 트렌젝션을 추가에 가스제약같은 추가제한이 있다.
-// the block in chain will be returned.
+// 프로토콜적인 제약(가스 한도)에 추가적으로 트렌젝션 내용에 대한 
+// 추가적인 제약이 좀더 있을수 있다
+// 특히, 블록해시 명령어가 포함된 계약코드의 경우 실행중 패닉이 난다
 func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
@@ -116,6 +129,7 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 }
 
 // Number returns the block number of the block being generated.
+// Number함수는 생성될 블록의 번호를 반환한다
 func (b *BlockGen) Number() *big.Int {
 	return new(big.Int).Set(b.header.Number)
 }
@@ -125,12 +139,17 @@ func (b *BlockGen) Number() *big.Int {
 //
 // AddUncheckedReceipt will cause consensus failures when used during real
 // chain processing. This is best used in conjunction with raw block insertion.
+//AddUncheckedReceipt 함수는 강제적으로 트렌젝션의 지원없이 영수증을 블록에 더한다
+// 이함수는 실제 체인을 처리하는 동안 사용될경우 합의 실패를 유발한다
+// 이함수는 raw블록 삽입에 결합하여 사용하면 좋다
 func (b *BlockGen) AddUncheckedReceipt(receipt *types.Receipt) {
 	b.receipts = append(b.receipts, receipt)
 }
 
 // TxNonce returns the next valid transaction nonce for the
 // account at addr. It panics if the account does not exist.
+// TxNonce함수는 주소상 계정이 다음에 사용할 유효한 트렌젝션 논스값을 반환한다
+// 계정이 존재하지 않을 경우 패닉이 발생한다
 func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 	if !b.statedb.Exist(addr) {
 		panic("account does not exist")
@@ -139,6 +158,7 @@ func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 }
 
 // AddUncle adds an uncle header to the generated block.
+// AddUncle함수는 엉클헤더를 생성된 블록에 추가한다
 func (b *BlockGen) AddUncle(h *types.Header) {
 	b.uncles = append(b.uncles, h)
 }
@@ -146,6 +166,9 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 // PrevBlock returns a previously generated block by number. It panics if
 // num is greater or equal to the number of the block being generated.
 // For index -1, PrevBlock returns the parent block given to GenerateChain.
+// PrevBlock함수는 숫자를 이용해 이전에 생성된 블록을 반환한다
+// 만약 숫자가 생성될 블록보다 크거나 같다면 패닉이 발생한다
+// -1 인덱스의 경우, 이함수는 주어진 체인의 부모 블록을 리턴한다
 func (b *BlockGen) PrevBlock(index int) *types.Block {
 	if index >= b.i {
 		panic("block index out of range")

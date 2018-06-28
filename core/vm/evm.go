@@ -39,6 +39,7 @@ type (
 )
 
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
+// run함수는 주어진 계약을 실행하고, 미리 컴파일된 것들을 코드 인터프리터로 폴백으로 관리한다
 func run(evm *EVM, contract *Contract, input []byte) ([]byte, error) {
 	if contract.CodeAddr != nil {
 		precompiles := PrecompiledContractsHomestead
@@ -138,7 +139,7 @@ func (evm *EVM) Cancel() {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-// Call 함수는 파라미터로 주어진 입력과 주소에 대한 계약을 실행한다.
+// Call 함수는 파라미터로 주어진 입력과 주소에 관련된  계약을 실행한다.
 // 또한 이함수는 가치전송에 요구되는 모든것과, 계정을 생성하기위해 필요한 단계와 
 // 전송 실패나, 실행 오류로인한 상태의 복원을 다룬다.
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
@@ -178,6 +179,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
+	// 새로운 계약을 초기화하고 EVM에서 사용될 code를 설정한다
+	// 계약은 이 실행 문맥만을 위해 제한된 환경이다
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
@@ -196,6 +199,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
+	// evm에서 에러가 발생할 경우나 코드생성을 설정할때
+	// 우리는 스냅샷으로 리버트하고 남은 가스를 소비할것이다
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {

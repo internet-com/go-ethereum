@@ -34,9 +34,9 @@ import (
 // ChainIndexerBackend defines the methods needed to process chain segments in
 // the background and write the segment results into the database. These can be
 // used to create filter blooms or CHTs.
-// 체인 인덱서 백엔드는 체인 세그먼트를 백그라운드로 처리하고
-// 세그먼트 결과를 DB에 쓰기위해 위해 필요한 방법들을 정의한다
-// 블룸필터나 CHT를 생성하는데 이용될 수 있다.
+// 체인 인덱서 백엔드는 체인조각를 백그라운드로 처리하고
+// 조각의 결과를 DB에 쓰기위해 위한 방법들을 정의한다
+// 이 방법들은 블룸필터나 CHT를 생성하는데 이용될 수 있다.
 type ChainIndexerBackend interface {
 	// Reset initiates the processing of a new chain segment, potentially terminating
 	// any partially completed operations (in case of a reorg).
@@ -51,7 +51,7 @@ type ChainIndexerBackend interface {
 }
 
 // ChainIndexerChain interface is used for connecting the indexer to a blockchain
-// 인덱서를 블록체인에 연결하기 위해 사용되는 인터페이스
+// ChainIndexerChain은 인덱서를 블록체인에 연결하기 위해 사용되는 인터페이스이다
 type ChainIndexerChain interface {
 	// CurrentHeader retrieves the latest locally known header.
 	CurrentHeader() *types.Header
@@ -70,13 +70,15 @@ type ChainIndexerChain interface {
 // after an entire section has been finished or in case of rollbacks that might
 // affect already finished sections.
 
-// 체인 인덱서는 캐노니컬 체인의 동일한 크기로 계획된 업무의 후처리를 담당한다 
-// (bloomBits, CHT struct)
-// 체인 인덱서는 체인이벤트 루프를 시작하여 이벤트 시스템을 통해 블록체인에 연결된다. 
+// 체인 인덱서는 bloomBits, CHT struct와 같이 동일한 크기로 구획된
+// 캐노니컬 체인 상의 업무 후처리를 담당한다 
+// 체인 인덱서는 체인이벤트 루프를 go루틴 안에서 시작함으로서
+// 이벤트 시스템을 통해 블록체인에 연결된다. 
+// @sigmoid: 블록체인과 이벤트로 통신한다는 뜻
 
-// 더욱이 자식 인덱서들은 부모의 섹션 인덱서의 출력값으로서 추가될수 있다.
-// 이러한 자식인덱서 들은 새로운 헤드 노티를 모든 섹션이 끝나거나
-// 이미 끝난 섹션의 롤백시에 받는다
+// 부모 섹션 인덱서의 출력값을 사용하는 자식 인덱서들이 추가될 수 있다.
+// 이러한 자식인덱서들은 모든 섹션이 끝나거나
+// 이미 끝난 섹션에 영향을 주는 롤백시에만 새로운 헤드 알림을 받을수있다
 type ChainIndexer struct {
 	chainDb  ethdb.Database      // Chain database to index the data from
 	indexDb  ethdb.Database      // Prefixed table-view of the db to write index metadata into
@@ -104,8 +106,9 @@ type ChainIndexer struct {
 // NewChainIndexer creates a new chain indexer to do background processing on
 // chain segments of a given size after certain number of confirmations passed.
 // The throttling parameter might be used to prevent database thrashing.
-// 이 함수는 몇번의 컨펌 지난후 채인 세그먼트를 
+// NewChainIndex 함수는 몇번의 컨펌 지난후 체인 세그먼트를 
 // 정해진 사이즈만큼 백그라운드에서 처리하는 체인 인덱서를 생성한다
+// 병목 변수는 데이터 베이스 동작의 엉킴을 방지하는데 쓰일수있다
 func NewChainIndexer(chainDb, indexDb ethdb.Database, backend ChainIndexerBackend, section, confirm uint64, throttling time.Duration, kind string) *ChainIndexer {
 	c := &ChainIndexer{
 		chainDb:     chainDb,
@@ -127,6 +130,8 @@ func NewChainIndexer(chainDb, indexDb ethdb.Database, backend ChainIndexerBacken
 
 // AddKnownSectionHead marks a new section head as known/processed if it is newer
 // than the already known best section head
+// AddKnownSectionHead 함수는 만약 새로운 섹션의 헤드가 이미 알려진 
+// best 섹션 헤더보다 새롭다면 새로운 섹션의 헤드를 알려짐/처리됨으로 표시한다
 func (c *ChainIndexer) AddKnownSectionHead(section uint64, shead common.Hash) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -141,9 +146,9 @@ func (c *ChainIndexer) AddKnownSectionHead(section uint64, shead common.Hash) {
 // Start creates a goroutine to feed chain head events into the indexer for
 // cascading background processing. Children do not need to be started, they
 // are notified about new events by their parents.
-// 이함수는 체인 헤드 이벤트를 인덱서쪽으로 feed할 고루틴을 생성한다
-// 백그라운드 처리의 연속성을 위하여.
-// 자식들은 부모로 부터 새로운 이벤트를 수신하므로 이함수를 호출할 필요가 없다.
+// Start함수는 중첩된 백그라운드 처리를 위해 
+// 체인 헤드 이벤트를 인덱서안으로 feed할 고루틴을 생성한다
+// 자식들은 부모로부터 새로운 이벤트를 수신하므로 이함수를 호출할 필요가 없다.
 func (c *ChainIndexer) Start(chain ChainIndexerChain) {
 	events := make(chan ChainEvent, 10)
 	sub := chain.SubscribeChainEvent(events)
@@ -153,6 +158,7 @@ func (c *ChainIndexer) Start(chain ChainIndexerChain) {
 
 // Close tears down all goroutines belonging to the indexer and returns any error
 // that might have occurred internally.
+// Close 함수는 이 인덱서에 속한 모든 고루틴을 멈추고 내부적으로 발생한 모든 에러를 반환한다
 func (c *ChainIndexer) Close() error {
 	var errs []error
 
@@ -191,8 +197,8 @@ func (c *ChainIndexer) Close() error {
 // eventLoop is a secondary - optional - event loop of the indexer which is only
 // started for the outermost indexer to push chain head events into a processing
 // queue.
-//이벤트 루프는 선택적이고 부수적인 인덱서의 이벤트 루프로서
-// 체인 헤드 이벤트를 외부 인덱서들이 프로세싱큐에 넣기 위해서 시작된다.
+// 이벤트 루프는 체인헤드 이벤트를 프로세싱 큐에 넣기 위한 최외각의 인덱서에서만 
+// 실행되는 부수적인 (or 선택적) 이벤트 루프이다
 func (c *ChainIndexer) eventLoop(currentHeader *types.Header, events chan ChainEvent, sub event.Subscription) {
 	// Mark the chain indexer as active, requiring an additional teardown
 	atomic.StoreUint32(&c.active, 1)
@@ -239,7 +245,7 @@ func (c *ChainIndexer) eventLoop(currentHeader *types.Header, events chan ChainE
 }
 
 // newHead notifies the indexer about new chain heads and/or reorgs.
-// 이 함수는 새 체인 헤드 혹은 재구성에 인덱서에게 알린다
+// newHead 함수는 새체인헤드 혹은 체인재구성을 인덱서에게 알린다
 func (c *ChainIndexer) newHead(head uint64, reorg bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -283,7 +289,7 @@ func (c *ChainIndexer) newHead(head uint64, reorg bool) {
 
 // updateLoop is the main event loop of the indexer which pushes chain segments
 // down into the processing backend.
-// 이 함수는 인덱서의 메인 이벤트 루프로서 체인 세그먼트를 프로세싱 백엔드로 넣는다
+// 이 함수는 인덱서의 메인 이벤트 루프로서 체인 세그먼트들을 프로세싱 백엔드에 넣는다
 func (c *ChainIndexer) updateLoop() {
 	var (
 		updating bool
@@ -361,7 +367,9 @@ func (c *ChainIndexer) updateLoop() {
 // ensuring the continuity of the passed headers. Since the chain mutex is not
 // held while processing, the continuity can be broken by a long reorg, in which
 // case the function returns with an error.
-// 이 함수는 전달되는 헤더들의 연속성이 보장되는 동안 백엔드 함수를 불러 전체 섹션을 처리한다
+// processSection 함수는 전달되는 헤더들의 연속성이 보장되는 동안 
+// 백엔드 함수를 불러 전체 섹션을 처리한다 처리하는 동안 체인 뮤텍스가 잡혀있지 않을 경우,
+// 긴시간이 걸리는 체인 재구성에 의해 연속성이 깨질수 있는데, 이런경우 함수는 에러를 리턴한다
 func (c *ChainIndexer) processSection(section uint64, lastHead common.Hash) (common.Hash, error) {
 	c.log.Trace("Processing new chain section", "section", section)
 
@@ -396,6 +404,8 @@ func (c *ChainIndexer) processSection(section uint64, lastHead common.Hash) (com
 // Sections returns the number of processed sections maintained by the indexer
 // and also the information about the last header indexed for potential canonical
 // verifications.
+// Section 함수는 인덱서에의해 관리된 처리완료된 섹션들의 갯수를 반환하고
+// 혹시나 있을 캐노니컬 검증을 위해 색인된 마지막 헤더에 대한 정보를 제공한다
 func (c *ChainIndexer) Sections() (uint64, uint64, common.Hash) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -404,7 +414,7 @@ func (c *ChainIndexer) Sections() (uint64, uint64, common.Hash) {
 }
 
 // AddChildIndexer adds a child ChainIndexer that can use the output of this one
-// 이 체인의 아웃풋으로 사용가능한 자식 체인 인덱서를 더한다
+// AddChildIndexer함수는 이 인덱서의 아웃풋을 사용할수 있는 자식 인덱서를 추가한다
 func (c *ChainIndexer) AddChildIndexer(indexer *ChainIndexer) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -419,6 +429,7 @@ func (c *ChainIndexer) AddChildIndexer(indexer *ChainIndexer) {
 
 // loadValidSections reads the number of valid sections from the index database
 // and caches is into the local state.
+// loadValidSections함수는 유효한 색션의 수를 DB로 부터 읽어 로컬 상태에 캐싱한다
 func (c *ChainIndexer) loadValidSections() {
 	data, _ := c.indexDb.Get([]byte("count"))
 	if len(data) == 8 {
@@ -427,6 +438,7 @@ func (c *ChainIndexer) loadValidSections() {
 }
 
 // setValidSections writes the number of valid sections to the index database
+// setValidSections 함수는 유효한 섹션의 갯수를 index 에 쓴다
 func (c *ChainIndexer) setValidSections(sections uint64) {
 	// Set the current number of valid sections in the database
 	var data [8]byte
@@ -457,6 +469,7 @@ func (c *ChainIndexer) SectionHead(section uint64) common.Hash {
 
 // setSectionHead writes the last block hash of a processed section to the index
 // database.
+// setSectionHead 함수는 처리된 섹션의 마지막 블록 해시를 인덱스 DB에 쓴다
 func (c *ChainIndexer) setSectionHead(section uint64, hash common.Hash) {
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], section)
@@ -466,6 +479,7 @@ func (c *ChainIndexer) setSectionHead(section uint64, hash common.Hash) {
 
 // removeSectionHead removes the reference to a processed section from the index
 // database.
+// removeSectionHead 함수는 처리된 섹션에 대한 참조를 인덱스 DB로 부터 제거한다
 func (c *ChainIndexer) removeSectionHead(section uint64) {
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], section)
