@@ -29,6 +29,8 @@ import (
 
 // nonceHeap is a heap.Interface implementation over 64bit unsigned integers for
 // retrieving sorted transactions from the possibly gapped future queue.
+// nonceHeap은 64bit unsigned integer환경에서 heap.Interface를 구현한것으로
+// 틈이 많이 발생할수있는 future queue에서 정렬된 트렌젝션들을 반환한다
 type nonceHeap []uint64
 
 func (h nonceHeap) Len() int           { return len(h) }
@@ -49,6 +51,8 @@ func (h *nonceHeap) Pop() interface{} {
 
 // txSortedMap is a nonce->transaction hash map with a heap based index to allow
 // iterating over the contents in a nonce-incrementing way.
+// txSortedMap 함수는 힙 베이스의 색인상의 논스 -> 트렌잭션 해시 맵으로
+// 논스 증가 방식으로 컨텐츠를 반복한다
 type txSortedMap struct {
 	items map[uint64]*types.Transaction // Hash map storing the transaction data
 	index *nonceHeap                    // Heap of nonces of all the stored transactions (non-strict mode)
@@ -56,6 +60,7 @@ type txSortedMap struct {
 }
 
 // newTxSortedMap creates a new nonce-sorted transaction map.
+// newTxSortedMap함수는 논스정렬된 트렌젝션 맵을 반환한다
 func newTxSortedMap() *txSortedMap {
 	return &txSortedMap{
 		items: make(map[uint64]*types.Transaction),
@@ -64,12 +69,15 @@ func newTxSortedMap() *txSortedMap {
 }
 
 // Get retrieves the current transactions associated with the given nonce.
+// Get함수는 주어진 논스에 관련된 현재 트렌젝션을 반환한다
 func (m *txSortedMap) Get(nonce uint64) *types.Transaction {
 	return m.items[nonce]
 }
 
 // Put inserts a new transaction into the map, also updating the map's nonce
 // index. If a transaction already exists with the same nonce, it's overwritten.
+// Put함수는 새로운 트렌젝션을 맵에 넣고, 동시에 맵의 논스 인덱스를 업데이트 한다
+// 만약 동일한 논스를 가진 트렌젝션이 이미 존재한다면 다시 써진다
 func (m *txSortedMap) Put(tx *types.Transaction) {
 	nonce := tx.Nonce()
 	if m.items[nonce] == nil {
@@ -81,6 +89,8 @@ func (m *txSortedMap) Put(tx *types.Transaction) {
 // Forward removes all transactions from the map with a nonce lower than the
 // provided threshold. Every removed transaction is returned for any post-removal
 // maintenance.
+// Forward함수는 주어진 한계값보다 작은 논스를 가진 모든 트렌젝션을 맵으로 부터 제거한다
+// 제거된 모든 트렌젝션은 제거 후 유지를 위해 리턴한다
 func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 	var removed types.Transactions
 
@@ -99,6 +109,7 @@ func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 
 // Filter iterates over the list of transactions and removes all of them for which
 // the specified function evaluates to true.
+// 필터 함수는 리스트를 반복하면서 인자로 전달된 함수의 실행결과가 참인 모든 트렌젝션을 제거한다
 func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transactions {
 	var removed types.Transactions
 
@@ -124,6 +135,7 @@ func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transac
 
 // Cap places a hard limit on the number of items, returning all transactions
 // exceeding that limit.
+//Cap 함수는 아이템의 최대 한계수를 정하고, 이 한계 숫자를 넘는 모든 트렌젝션을 리턴한다
 func (m *txSortedMap) Cap(threshold int) types.Transactions {
 	// Short circuit if the number of items is under the limit
 	if len(m.items) <= threshold {
@@ -149,6 +161,7 @@ func (m *txSortedMap) Cap(threshold int) types.Transactions {
 
 // Remove deletes a transaction from the maintained map, returning whether the
 // transaction was found.
+// Remove함수는 유지중인 맵에서 트렌젝션을 제거하고 트렌젝션의 발견 여부를 반환한다
 func (m *txSortedMap) Remove(nonce uint64) bool {
 	// Short circuit if no transaction is present
 	_, ok := m.items[nonce]
@@ -175,6 +188,10 @@ func (m *txSortedMap) Remove(nonce uint64) bool {
 // Note, all transactions with nonces lower than start will also be returned to
 // prevent getting into and invalid state. This is not something that should ever
 // happen but better to be self correcting than failing!
+// Ready함수는 주어진 논스로 부터 실행준비가 된 트렌젝션을의 순차적으로 증가하는 리스트를 반환한다
+// 반환된 트렌젝션들을 리스트로 부터 제거될 것이다
+// 논스 이하의 모든 트렌젝션 역시 무효상태로 들어가는 것을 방지하기 위해 리턴할 것이다
+// 이런 일은 일어나진 않겠지만 실패하는 것보다는 코드로 매니지 해놓는것이 좋다
 func (m *txSortedMap) Ready(start uint64) types.Transactions {
 	// Short circuit if no transactions are available
 	if m.index.Len() == 0 || (*m.index)[0] > start {
@@ -193,13 +210,17 @@ func (m *txSortedMap) Ready(start uint64) types.Transactions {
 }
 
 // Len returns the length of the transaction map.
+//Len 함수는 트렌젝션 맵의 길이를 반환한다
 func (m *txSortedMap) Len() int {
 	return len(m.items)
 }
 
 // Flatten creates a nonce-sorted slice of transactions based on the loosely
 // sorted internal representation. The result of the sorting is cached in case
-// it's requested again before any modifications are made to the contents.
+// it's requested again before any modifscations are made to the contents.
+// Flatten 함수는 내부적 으로 표현되는 완벽하지 않은 정렬 상태에 기반하여
+// 논스로 정렬된 트렌젝션의 조각을 반환한다
+// 내용에 대한 어떤 수정이 없는 상태에서 또다시 요청된다면 이 정렬 결과는 캐싱된다
 func (m *txSortedMap) Flatten() types.Transactions {
 	// If the sorting was not cached yet, create and cache it
 	if m.cache == nil {
@@ -231,6 +252,8 @@ type txList struct {
 
 // newTxList create a new transaction list for maintaining nonce-indexable fast,
 // gapped, sortable transaction lists.
+// newTxList함수는 논스 정렬된 빠르고, 듬성듬성하고 정렬가능한 트렌젝션 리스트를 유지하기 위해
+// 새로운 트렌젝션을 생성한다
 func newTxList(strict bool) *txList {
 	return &txList{
 		strict:  strict,
@@ -241,6 +264,8 @@ func newTxList(strict bool) *txList {
 
 // Overlaps returns whether the transaction specified has the same nonce as one
 // already contained within the list.
+// Overlaps 함수는 지정된 트렌젝션이 이미 리스트에 포함된 논스와 
+// 같은지 여부를 반환한다
 func (l *txList) Overlaps(tx *types.Transaction) bool {
 	return l.txs.Get(tx.Nonce()) != nil
 }
@@ -250,6 +275,9 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 //
 // If the new transaction is accepted into the list, the lists' cost and gas
 // thresholds are also potentially updated.
+// Add함수는 트렌젝션을 리스트로 넣는 시도를 하며 트렌젝션이 수락되었는지 여부를 반환한다
+// 만약 수락되었다면 기존 트렌젝션은 교체된다
+// 만약 새로운 트렌젝션이 리스트에 수락되었다면 리스트의 비용과 가스 한도역시 갱신될 수 있다
 func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
@@ -276,6 +304,8 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
 // Forward removes all transactions from the list with a nonce lower than the
 // provided threshold. Every removed transaction is returned for any post-removal
 // maintenance.
+// Forward함수는 주어진 한계값보다 작은 논스를 가진 모든 트렌젝션을 맵으로 부터 제거한다
+// 제거된 모든 트렌젝션은 제거 후 유지를 위해 리턴한다
 func (l *txList) Forward(threshold uint64) types.Transactions {
 	return l.txs.Forward(threshold)
 }
@@ -289,6 +319,12 @@ func (l *txList) Forward(threshold uint64) types.Transactions {
 // a point in calculating all the costs or if the balance covers all. If the threshold
 // is lower than the costgas cap, the caps will be reset to a new high after removing
 // the newly invalidated transactions.
+// Filter함수는 비용이나 가스 한도가 주어진 한도보다 높을 경우 모든 트렌젝션을 리스트로 부터 제거한다
+// 모든 제거된 트렌젝션은 제거후처리를 유지하기 위해 반환된다
+// 엄격하게 검증된 트렌젝션도 역시 반환된다
+// 이 함수는 모든 비용이나 잔고등을 빠르게 계산하기 위해 캐싱된 비용한도와 가스 한도를 사용한다
+// 만약 한도가 가스 비용한도보다 작다면 한도가 새롭게 무효화된 트렌젝션들을 제거한 후
+// 더높은 값으로 새로 설정될 것이다
 func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
 	// If all transactions are below the threshold, short circuit
 	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
@@ -317,6 +353,7 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 
 // Cap places a hard limit on the number of items, returning all transactions
 // exceeding that limit.
+// itrem 수량의 한도를 설정하고 초과하는 모든 트렌젠션을 반환해버린다
 func (l *txList) Cap(threshold int) types.Transactions {
 	return l.txs.Cap(threshold)
 }
@@ -324,6 +361,8 @@ func (l *txList) Cap(threshold int) types.Transactions {
 // Remove deletes a transaction from the maintained list, returning whether the
 // transaction was found, and also returning any transaction invalidated due to
 // the deletion (strict mode only).
+// Remove함수는 관리중인 리스트로부터 트렌젝션을 제거하며
+// 트렌젝션이 찾아졌거나 삭제때문에 무효화된 모든 트렌젝션을 반환한다
 func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 	// Remove the transaction from the set
 	nonce := tx.Nonce()
@@ -344,6 +383,10 @@ func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 // Note, all transactions with nonces lower than start will also be returned to
 // prevent getting into and invalid state. This is not something that should ever
 // happen but better to be self correcting than failing!
+// Ready함수는 처리 가능한 순차적으로 증가하는 트렌젝션의 리스트를 주어진 논스로 부터 반환한다
+// 반환된 트렌젝션은 리스트로 부터 삭제된다
+// 주어진 논스보다 낮은 모든 트렌젝션 역시 무효 상태와 리스트의 사용방지를 위해 반환된다
+
 func (l *txList) Ready(start uint64) types.Transactions {
 	return l.txs.Ready(start)
 }
@@ -361,12 +404,17 @@ func (l *txList) Empty() bool {
 // Flatten creates a nonce-sorted slice of transactions based on the loosely
 // sorted internal representation. The result of the sorting is cached in case
 // it's requested again before any modifications are made to the contents.
+// Flatten 함수는 내부적 으로 표현되는 완벽하지 않은 정렬 상태에 기반하여
+// 논스로 정렬된 트렌젝션의 조각을 반환한다
+// 내용에 대한 어떤 수정이 없는 상태에서 또다시 요청된다면 이 정렬 결과는 캐싱된다
 func (l *txList) Flatten() types.Transactions {
 	return l.txs.Flatten()
 }
 
 // priceHeap is a heap.Interface implementation over transactions for retrieving
 // price-sorted transactions to discard when the pool fills up.
+// priceHeap은 트렌젝션들을 위한 heap 인터페이스를 구현하며
+// 풀이 가득 찼을때 버릴 가격 정렬된 트렌젝션을 반환한다
 type priceHeap []*types.Transaction
 
 func (h priceHeap) Len() int      { return len(h) }
@@ -398,6 +446,7 @@ func (h *priceHeap) Pop() interface{} {
 
 // txPricedList is a price-sorted heap to allow operating on transactions pool
 // contents in a price-incrementing way.
+// txPricedList는 트렌젝션 풀의 내용이 가격이 증가하는 형태로 동작하게 하기 위한 가격 정렬된 힙이다
 type txPricedList struct {
 	all    *map[common.Hash]*types.Transaction // Pointer to the map of all transactions
 	items  *priceHeap                          // Heap of prices of all the stored transactions
@@ -405,6 +454,7 @@ type txPricedList struct {
 }
 
 // newTxPricedList creates a new price-sorted transaction heap.
+// newTxPricedList함수는 새롭게 가격정렬된 트렌젝션 힙을 생성한다
 func newTxPricedList(all *map[common.Hash]*types.Transaction) *txPricedList {
 	return &txPricedList{
 		all:   all,
@@ -413,6 +463,7 @@ func newTxPricedList(all *map[common.Hash]*types.Transaction) *txPricedList {
 }
 
 // Put inserts a new transaction into the heap.
+// Put함수는 새로운 트렌젝션을 힙에 삽입한다
 func (l *txPricedList) Put(tx *types.Transaction) {
 	heap.Push(l.items, tx)
 }
@@ -420,6 +471,9 @@ func (l *txPricedList) Put(tx *types.Transaction) {
 // Removed notifies the prices transaction list that an old transaction dropped
 // from the pool. The list will just keep a counter of stale objects and update
 // the heap if a large enough ratio of transactions go stale.
+// Removed함수는 풀로부터 제거되는 오래된 트렌젝션의 가격 리스트를 알린다
+// 이 리스트는 상태 오브젝트의 숫자만을 저장하며
+// 트렌젝션이 떨어질때의 충분히 큰 비율로 힙을 업데이트 한다
 func (l *txPricedList) Removed() {
 	// Bump the stale counter, but exit if still too low (< 25%)
 	l.stales++
@@ -438,6 +492,9 @@ func (l *txPricedList) Removed() {
 
 // Cap finds all the transactions below the given price threshold, drops them
 // from the priced list and returs them for further removal from the entire pool.
+// Cap 함수는 주어진 가격보다 높은 모든 트렌젝션들을 찾아 가격 리스트에서 제거하고
+// 전체 풀로부터 제거하기 위해 반환한다
+
 func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transactions {
 	drop := make(types.Transactions, 0, 128) // Remote underpriced transactions to drop
 	save := make(types.Transactions, 0, 64)  // Local underpriced transactions to keep
@@ -469,6 +526,7 @@ func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transact
 
 // Underpriced checks whether a transaction is cheaper than (or as cheap as) the
 // lowest priced transaction currently being tracked.
+// Underpriced 함수는 트렌젝션이 현재 추적중인 가장 저가의 트렌젝션보다 싸거나 같은지 확인한다
 func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) bool {
 	// Local transactions cannot be underpriced
 	if local.containsTx(tx) {
@@ -495,6 +553,8 @@ func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) boo
 
 // Discard finds a number of most underpriced transactions, removes them from the
 // priced list and returns them for further removal from the entire pool.
+// Discard 함수는 가장 저렴한 트렌젝션의 갯수를 찾아서 가격 리스트에서 제거하고
+// 전체 풀에서 제거하기 위해 반환한다
 func (l *txPricedList) Discard(count int, local *accountSet) types.Transactions {
 	drop := make(types.Transactions, 0, count) // Remote underpriced transactions to drop
 	save := make(types.Transactions, 0, 64)    // Local underpriced transactions to keep

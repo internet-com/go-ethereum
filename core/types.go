@@ -25,7 +25,9 @@ import (
 // Validator is an interface which defines the standard for block validation. It
 // is only responsible for validating block contents, as the header validation is
 // done by the specific consensus engines.
-//
+// Validator는 블록의 검증을 위한 기준을 정의하는 인터페이스 이다
+// 이 인터페이스는 헤더 검증이 지정된 합의 엔진에 의해 검증되는 것 처럼
+// 블록의 내용을 검증하는것 만을 담고있다.
 type Validator interface {
 	// ValidateBody validates the given block's content.
 	ValidateBody(block *types.Block) error
@@ -41,6 +43,10 @@ type Validator interface {
 // initial state is based. It should return the receipts generated, amount
 // of gas used in the process and return an error if any of the internal rules
 // failed.
+// Processer는 주어진 초기 상태르 ㄹ이용해 블록을 처리하는 인터페이스이다
+// Process는 처리될 블록과 전달된 초기 상태가 베이스인 스테이트 DB를 받는다
+// 이함수는 생성된 영수증과 처리에 사용된 가스사용량과 내부룰에 실패했을 경우 에러를 리턴해야한다
+
 type Processor interface {
 	Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error)
 }

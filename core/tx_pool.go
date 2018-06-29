@@ -37,23 +37,28 @@ import (
 
 const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
+	// chainHeadCahnSize는 체인 헤드 이벤트를 대기할 채널의 크기이다
 	chainHeadChanSize = 10
 )
 
 var (
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
+	// ErrInvalidSender는 트렌젝션이 유효하지 않은 사인을 포함할 경우 반환된다
 	ErrInvalidSender = errors.New("invalid sender")
 
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
+	// ErrNonceTooLow는 현재 로컬 체인에 나타는 트렌젝션의 nonce보다 낮을경우 반환된다
 	ErrNonceTooLow = errors.New("nonce too low")
 
 	// ErrUnderpriced is returned if a transaction's gas price is below the minimum
 	// configured for the transaction pool.
+	// ErrUnderpriced는 트렌젝션의 가스 가격이 트렌젝션 풀의 최소 설정값보다 낮을때 반환된다
 	ErrUnderpriced = errors.New("transaction underpriced")
 
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
+	// ErrReplaceUnderpriced는 트렌젝션이 요구된 가격상승 없이 다른 트렌젝션으로 교체되려할때 반환된다
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction

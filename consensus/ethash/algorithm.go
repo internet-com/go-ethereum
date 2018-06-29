@@ -50,6 +50,7 @@ const (
 
 // cacheSize returns the size of the ethash verification cache that belongs to a certain
 // block number.
+// cacheSize는 특정 블록 넘버에 속한 ethash 검증 캐시의 사이즈를 반환한다
 func cacheSize(block uint64) uint64 {
 	epoch := int(block / epochLength)
 	if epoch < maxEpoch {
@@ -61,6 +62,9 @@ func cacheSize(block uint64) uint64 {
 // calcCacheSize calculates the cache size for epoch. The cache size grows linearly,
 // however, we always take the highest prime below the linearly growing threshold in order
 // to reduce the risk of accidental regularities leading to cyclic behavior.
+// calcCacheSize함수는 각 에포크의 캐시사이즈를 계산한다. 그러나 캐시사이즈는 선형으로 증가하기때문에
+// 우리는 사이클릭 행동을 유발하는 돌발적이고 규칙적인 리스크를 줄이기 위해
+// 언제나 선형 증가 한도내에서 가장 높은 것을 취한다
 func calcCacheSize(epoch int) uint64 {
 	size := cacheInitBytes + cacheGrowthBytes*uint64(epoch) - hashBytes
 	for !new(big.Int).SetUint64(size / hashBytes).ProbablyPrime(1) { // Always accurate for n < 2^64
@@ -71,6 +75,7 @@ func calcCacheSize(epoch int) uint64 {
 
 // datasetSize returns the size of the ethash mining dataset that belongs to a certain
 // block number.
+//dataSize함수는 특정블록넘버에 포함된 ehtash의 마이닝 데이터셋의 크기를 반환한다
 func datasetSize(block uint64) uint64 {
 	epoch := int(block / epochLength)
 	if epoch < maxEpoch {
@@ -82,6 +87,10 @@ func datasetSize(block uint64) uint64 {
 // calcDatasetSize calculates the dataset size for epoch. The dataset size grows linearly,
 // however, we always take the highest prime below the linearly growing threshold in order
 // to reduce the risk of accidental regularities leading to cyclic behavior.
+// calcDatasetSize함수는 에포크를 위한 데이터 셋 사이즈를 계산한다
+// 그러나 데이터 셋 사이즈는 선형으로 증가하기때문에
+// 우리는 사이클릭 행동을 유발하는 돌발적이고 규칙적인 리스크를 줄이기 위해
+// 언제나 선형 증가 한도내에서 가장 높은 것을 취한다
 func calcDatasetSize(epoch int) uint64 {
 	size := datasetInitBytes + datasetGrowthBytes*uint64(epoch) - mixBytes
 	for !new(big.Int).SetUint64(size / mixBytes).ProbablyPrime(1) { // Always accurate for n < 2^64

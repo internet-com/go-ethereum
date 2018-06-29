@@ -29,12 +29,17 @@ import (
 
 // errNoActiveJournal is returned if a transaction is attempted to be inserted
 // into the journal, but no such file is currently open.
+// errNoActivejournal은 트렌젝션이 저널에 쓰여지려 하나 
+// 그런 파일이 열려있지 않을때 반환된다
 var errNoActiveJournal = errors.New("no active journal")
 
 // devNull is a WriteCloser that just discards anything written into it. Its
 // goal is to allow the transaction journal to write into a fake journal when
 // loading transactions on startup without printing warnings due to no file
 // being readt for write.
+// devNull은 쓰기 종료자로서 이곳에 쓰이는 모든 것은 무시된다.
+// 이것의 목적은 읽혀진 트렌젝션이 시작될때 쓰기위한 아무 파일이 준비되지 않음으로 인해
+// 경고 출력없이 없을때 트렌젝션 저널에게 가짜 저널에 쓰는 것을 허용하기 위해서 이다
 type devNull struct{}
 
 func (*devNull) Write(p []byte) (n int, err error) { return len(p), nil }
@@ -42,13 +47,17 @@ func (*devNull) Close() error                      { return nil }
 
 // txJournal is a rotating log of transactions with the aim of storing locally
 // created transactions to allow non-executed ones to survive node restarts.
-// 이 구조체는 노드의 재시작에도 트렌젝션을 생성하기 위한 트렌젝션의 교대 로깅이다.
+// txJournal 구조체는 로컬에 저장하는 것을 노려 생성된 트렌젝션들중 실행되지 않은 것들이
+// 노드의 재시작에도 살아남는 것을 허용하기 위한 순환로그
+// @sigmoid: 로컬에서 발생한 트렌젝션이 아직 실행되지 않은 상태에서 노드를 재시작할때
+// 정보가 손실되는것을 막기 위한 것.
 type txJournal struct {
 	path   string         // Filesystem path to store the transactions at
 	writer io.WriteCloser // Output stream to write new transactions into
 }
 
 // newTxJournal creates a new transaction journal to
+// newTxJournal함수는 새로운 트렌젝션 저널을 경로에 만든다
 func newTxJournal(path string) *txJournal {
 	return &txJournal{
 		path: path,
@@ -57,6 +66,7 @@ func newTxJournal(path string) *txJournal {
 
 // load parses a transaction journal dump from disk, loading its contents into
 // the specified pool.
+// load 함수는 디스크로 부터 트렌젝션 저널의 덤프를 분석하여 내용을 지정된 풀에 넣는다
 func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 	// Skip the parsing if the journal file doens't exist at all
 	if _, err := os.Stat(journal.path); os.IsNotExist(err) {
@@ -118,6 +128,7 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 }
 
 // insert adds the specified transaction to the local disk journal.
+// insert 함수는 지정된 트렌젝션을 로컬 디스크 저널에 추가한다
 func (journal *txJournal) insert(tx *types.Transaction) error {
 	if journal.writer == nil {
 		return errNoActiveJournal
@@ -130,6 +141,7 @@ func (journal *txJournal) insert(tx *types.Transaction) error {
 
 // rotate regenerates the transaction journal based on the current contents of
 // the transaction pool.
+// rotate 함수는 트렌젝션 풀의 현재 내용을 기반으로 트렌젝션 저널을 만든다
 func (journal *txJournal) rotate(all map[common.Address]types.Transactions) error {
 	// Close the current journal (if any is open)
 	if journal.writer != nil {
@@ -170,6 +182,7 @@ func (journal *txJournal) rotate(all map[common.Address]types.Transactions) erro
 }
 
 // close flushes the transaction journal contents to disk and closes the file.
+// close 함수는 트렌젝션 저널의 내용을 디스크에 쓰고 파일을 닫는다
 func (journal *txJournal) close() error {
 	var err error
 
