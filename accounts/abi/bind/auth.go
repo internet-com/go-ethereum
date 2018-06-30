@@ -30,6 +30,8 @@ import (
 
 // NewTransactor is a utility method to easily create a transaction signer from
 // an encrypted json key stream and the associated passphrase.
+// NewTransactor함수는 암호화된 json key stream과 연관된 암호로부터 쉽게
+// 트렌젝션 사이너를 생성하는 유틸리티 메소드이다
 func NewTransactor(keyin io.Reader, passphrase string) (*TransactOpts, error) {
 	json, err := ioutil.ReadAll(keyin)
 	if err != nil {
@@ -44,6 +46,8 @@ func NewTransactor(keyin io.Reader, passphrase string) (*TransactOpts, error) {
 
 // NewKeyedTransactor is a utility method to easily create a transaction signer
 // from a single private key.
+// NewKeydTransactor함수는 암호키로부터 쉽게
+// 트렌젝션 사이너를 생성하는 유틸리티 메소드이다
 func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 	keyAddr := crypto.PubkeyToAddress(key.PublicKey)
 	return &TransactOpts{

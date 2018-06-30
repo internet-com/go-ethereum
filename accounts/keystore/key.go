@@ -140,6 +140,9 @@ func newKeyFromECDSA(privateKeyECDSA *ecdsa.PrivateKey) *Key {
 // NewKeyForDirectICAP generates a key whose address fits into < 155 bits so it can fit
 // into the Direct ICAP spec. for simplicity and easier compatibility with other libs, we
 // retry until the first byte is 0.
+// NewKeyForDirectICAP 함수는 adress를 155bit 이하로 맞추어 
+// Direct ICAP spec에 적합하도록 생성한다
+// 단순하고 쉬운 연동을 위해 우리는 첫번째바이트가 0일때까지 재시도 한다
 func NewKeyForDirectICAP(rand io.Reader) *Key {
 	randBytes := make([]byte, 64)
 	_, err := rand.Read(randBytes)
@@ -203,6 +206,7 @@ func writeKeyFile(file string, content []byte) error {
 
 // keyFileName implements the naming convention for keyfiles:
 // UTC--<created_at UTC ISO8601>-<address hex>
+// keyFileName함수는 keyfile의 이름생성방법을 구현한다
 func keyFileName(keyAddr common.Address) string {
 	ts := time.Now().UTC()
 	return fmt.Sprintf("UTC--%s--%s", toISO8601(ts), hex.EncodeToString(keyAddr[:]))

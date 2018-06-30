@@ -27,6 +27,7 @@ import (
 // Event is an event potentially triggered by the EVM's LOG mechanism. The Event
 // holds type information (inputs) about the yielded output. Anonymous events
 // don't get the signature canonical representation as the first LOG topic.
+// Evnet는 EVM의 로그 동작방식에 이해 발생가능한 이벤트이다.
 type Event struct {
 	Name      string
 	Anonymous bool

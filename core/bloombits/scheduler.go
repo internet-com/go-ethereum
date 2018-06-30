@@ -22,12 +22,15 @@ import (
 
 // request represents a bloom retrieval task to prioritize and pull from the local
 // database or remotely from the network.
+// request 구조체는 우선순위 블룸 반환 task를 표현하며, 로컬이나 네트워크
+// 에서 당겨온다
 type request struct {
 	section uint64 // Section index to retrieve the a bit-vector from
 	bit     uint   // Bit index within the section to retrieve the vector of
 }
 
 // response represents the state of a requested bit-vector through a scheduler.
+// response  함수는 스케쥴로로 부터 요청된 bit 벡터의 상태를 표현한다
 type response struct {
 	cached []byte        // Cached bits to dedup multiple requests
 	done   chan struct{} // Channel to allow waiting for completion
@@ -38,6 +41,9 @@ type response struct {
 // retrieval operations, this struct also deduplicates the requests and caches
 // the results to minimize network/database overhead even in complex filtering
 // scenarios.
+// scheduler 구조체는 싱글 블룸비트에 포함된 전체 섹션 배치의
+// 블룸필터반환동작 스케쥴을 관리한다. 뿐만아니라 네트워크나 DB의 오버패드를 
+// 줄이기 위해 중복을 제어한다
 type scheduler struct {
 	bit       uint                 // Index of the bit in the bloom filter this scheduler is responsible for
 	responses map[uint64]*response // Currently pending retrieval requests or already cached responses
@@ -46,6 +52,7 @@ type scheduler struct {
 
 // newScheduler creates a new bloom-filter retrieval scheduler for a specific
 // bit index.
+// newScheduler함수는 특정 비트 인덱스에 대한 새로운 블룸필터 반환 스케쥴러를 생성한다
 func newScheduler(idx uint) *scheduler {
 	return &scheduler{
 		bit:       idx,
@@ -56,6 +63,8 @@ func newScheduler(idx uint) *scheduler {
 // run creates a retrieval pipeline, receiving section indexes from sections and
 // returning the results in the same order through the done channel. Concurrent
 // runs of the same scheduler are allowed, leading to retrieval task deduplication.
+// run 함수는 반환 파이프라인을 생성하고, 섹션으로부터 섹션인덱스들을 수신하고
+// 완료된 채널로부터 결과를 반환한다
 func (s *scheduler) run(sections chan uint64, dist chan *request, done chan []byte, quit chan struct{}, wg *sync.WaitGroup) {
 	// Create a forwarder channel between requests and responses of the same size as
 	// the distribution channel (since that will block the pipeline anyway).

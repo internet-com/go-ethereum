@@ -101,11 +101,15 @@ func calcDatasetSize(epoch int) uint64 {
 
 // hasher is a repetitive hasher allowing the same hash data structures to be
 // reused between hash runs instead of requiring new ones to be created.
+// hasher 함수는 해시가 사용되는 동안에 새로운 것을 만드는 대신 
+// 재사용 될 동일한 해시데이터 구조를 허용하는 반복적인 해시를 하는 함수이다
 type hasher func(dest []byte, data []byte)
 
 // makeHasher creates a repetitive hasher, allowing the same hash data structures
 // to be reused between hash runs instead of requiring new ones to be created.
 // The returned function is not thread safe!
+// 재사용 될 동일한 해시데이터 구조를 허용하는 반복적인 해시를 하는 함수이다
+// 반환된 함수는 thread safe하지 않다
 func makeHasher(h hash.Hash) hasher {
 	return func(dest []byte, data []byte) {
 		h.Write(data)
@@ -116,6 +120,7 @@ func makeHasher(h hash.Hash) hasher {
 
 // seedHash is the seed to use for generating a verification cache and the mining
 // dataset.
+// seedHash 함수는 마이닝 데이터 셋과 검증 캐시를 생성하는데 사용될 시드로 사용된다
 func seedHash(block uint64) []byte {
 	seed := make([]byte, 32)
 	if block < epochLength {
@@ -134,6 +139,10 @@ func seedHash(block uint64) []byte {
 // algorithm from Strict Memory Hard Hashing Functions (2014). The output is a
 // set of 524288 64-byte values.
 // This method places the result into dest in machine byte order.
+// generateCache함수는 인풋시드를 위한 주어진 사이즈의 검증캐시를 생성한다
+// 캐시 생성 과정은 32mb 메모리를 순서대로 채우고 2pass의 
+// Sergio Demian Lerner's RandMemoHash algorithm을 수행한다 
+// 출력은 524288개의 64byte 값이다
 func generateCache(dest []uint32, epoch uint64, seed []byte) {
 	// Print some debug logs to allow analysis on low end devices
 	logger := log.New("epoch", epoch)
@@ -206,6 +215,7 @@ func generateCache(dest []uint32, epoch uint64, seed []byte) {
 }
 
 // swap changes the byte order of the buffer assuming a uint32 representation.
+// swap함수는 버퍼의 바이트 오더를 uint32버퍼 표현으로 가정하고 바꾼다
 func swap(buffer []byte) {
 	for i := 0; i < len(buffer); i += 4 {
 		binary.BigEndian.PutUint32(buffer[i:], binary.LittleEndian.Uint32(buffer[i:]))
@@ -215,6 +225,9 @@ func swap(buffer []byte) {
 // prepare converts an ethash cache or dataset from a byte stream into the internal
 // int representation. All ethash methods work with ints to avoid constant byte to
 // int conversions as well as to handle both little and big endian systems.
+// prepare 함수는 ethash cache나 dataset을 바이트스트림에서 내부 정수 표현으로 변환한다
+// 모든 ethash 방법은 정적바이트를 정수로 변환하는 것을 회피하고, 리틀/빅 엔디언 시스템을
+// 모두 지원하기 위해 이함수를 쓴다
 func prepare(dest []uint32, src []byte) {
 	for i := 0; i < len(dest); i++ {
 		dest[i] = binary.LittleEndian.Uint32(src[i*4:])
@@ -225,11 +238,13 @@ func prepare(dest []uint32, src []byte) {
 // a non-associative substitute for XOR. Note that we multiply the prime with
 // the full 32-bit input, in contrast with the FNV-1 spec which multiplies the
 // prime with one byte (octet) in turn.
+// fnv함수는연관없는 XOR을 교체하기 위해 사용되는FNV해시에 영향을 받은 알고리즘이다
 func fnv(a, b uint32) uint32 {
 	return a*0x01000193 ^ b
 }
 
 // fnvHash mixes in data into mix using the ethash fnv method.
+// fnvHash함수는 ethash fnv 함수를 사용해 데이터를 믹스한다
 func fnvHash(mix []uint32, data []uint32) {
 	for i := 0; i < len(mix); i++ {
 		mix[i] = mix[i]*0x01000193 ^ data[i]
@@ -399,6 +414,8 @@ func hashimotoLight(size uint64, cache []uint32, hash []byte, nonce uint64) ([]b
 // hashimotoFull aggregates data from the full dataset (using the full in-memory
 // dataset) in order to produce our final value for a particular header hash and
 // nonce.
+// hashimotoFull 함수는 최종값인 헤더해시와 논스를 생성하기 위해
+// full data set으로 부터  데이터를 수집한다
 func hashimotoFull(dataset []uint32, hash []byte, nonce uint64) ([]byte, []byte) {
 	lookup := func(index uint32) []uint32 {
 		offset := index * hashWords
@@ -411,6 +428,7 @@ const maxEpoch = 2048
 
 // datasetSizes is a lookup table for the ethash dataset size for the first 2048
 // epochs (i.e. 61440000 blocks).
+// datasetSizes는 첫 2048 epoch를 위한 ethash dataset 사이즈를 나타내는 lookup table이다
 var datasetSizes = [maxEpoch]uint64{
 	1073739904, 1082130304, 1090514816, 1098906752, 1107293056,
 	1115684224, 1124070016, 1132461952, 1140849536, 1149232768,

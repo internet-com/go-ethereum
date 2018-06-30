@@ -43,18 +43,23 @@ var (
 
 // ContractCaller defines the methods needed to allow operating with contract on a read
 // only basis.
+// ContractCaller함수는 계약들이 읽기기반으로 동작하는것을 허용하기 위한 메소드를 정의한다 
 type ContractCaller interface {
 	// CodeAt returns the code of the given account. This is needed to differentiate
 	// between contract internal errors and the local chain being out of sync.
+	// CodeAt 함수는 주어진 계정의 코드를 반환한다.
 	CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error)
 	// ContractCall executes an Ethereum contract call with the specified data as the
 	// input.
+	// ContractCall 함수는 이더리움 계약 call을 정해진 input data를 사용하여 호출한다
 	CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)
 }
 
 // PendingContractCaller defines methods to perform contract calls on the pending state.
 // Call will try to discover this interface when access to the pending state is requested.
 // If the backend does not support the pending state, Call returns ErrNoPendingState.
+// PendingContractCaller함수는 대기상태에서 계약을 수행하기 위한 메소드를 정의한다
+// Call은 펜딩상태에서의 접근이 요구되었을때 이 인터페이스를 발견하려고 노력할 것이다
 type PendingContractCaller interface {
 	// PendingCodeAt returns the code of the given account in the pending state.
 	PendingCodeAt(ctx context.Context, contract common.Address) ([]byte, error)
@@ -66,6 +71,9 @@ type PendingContractCaller interface {
 // on a write only basis. Beside the transacting method, the remainder are helpers
 // used when the user does not provide some needed values, but rather leaves it up
 // to the transactor to decide.
+// ContractTransactor함수는 쓰기 기반의 계약 동작을 허용하기위한 방법과 
+// 트렌젝션하는 방법을 제공하며 나머지는 유저가 필요한 값을 제공하지 않았을때를 위한
+// 도움함수들이다. 
 type ContractTransactor interface {
 	// PendingCodeAt returns the code of the given account in the pending state.
 	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
@@ -86,6 +94,8 @@ type ContractTransactor interface {
 
 // ContractFilterer defines the methods needed to access log events using one-off
 // queries or continuous event subscriptions.
+// ContractFilterer함수는 on-off쿼리나 연속적인 이벤트 구독을 사용하여 log event에
+// 접근하기 위한 방법을 정의한다
 type ContractFilterer interface {
 	// FilterLogs executes a log filter operation, blocking during execution and
 	// returning all the results in one batch.

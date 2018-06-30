@@ -26,18 +26,22 @@ import (
 
 // keystoreWallet implements the accounts.Wallet interface for the original
 // keystore.
+// keystoreWallet 구조체는 원래의 키저장소를 위한 accounts.Wallet 인터페이스를 구현한다  
 type keystoreWallet struct {
 	account  accounts.Account // Single account contained in this wallet
 	keystore *KeyStore        // Keystore where the account originates from
 }
 
 // URL implements accounts.Wallet, returning the URL of the account within.
+// URL함수는 accounts.Wallet을 구현하며 account의 url을 반환한다
 func (w *keystoreWallet) URL() accounts.URL {
 	return w.account.URL
 }
 
 // Status implements accounts.Wallet, returning whether the account held by the
 // keystore wallet is unlocked or not.
+// Status함수는 accounts.Wallet을 구현하며 잠굼여부에 상관없이
+// 이 키스토어 지갑의 모든 계정을 반환한다
 func (w *keystoreWallet) Status() (string, error) {
 	w.keystore.mu.RLock()
 	defer w.keystore.mu.RUnlock()
@@ -58,6 +62,7 @@ func (w *keystoreWallet) Close() error { return nil }
 
 // Accounts implements accounts.Wallet, returning an account list consisting of
 // a single account that the plain kestore wallet contains.
+// Accounts 함수는 키스토어 지갑이 포함하는 계정의 리스트를 반환한다
 func (w *keystoreWallet) Accounts() []accounts.Account {
 	return []accounts.Account{w.account}
 }
@@ -82,6 +87,11 @@ func (w *keystoreWallet) SelfDerive(base accounts.DerivationPath, chain ethereum
 // the given account. If the wallet does not wrap this particular account, an
 // error is returned to avoid account leakage (even though in theory we may be
 // able to sign via our shared keystore backend).
+// SignHash 함수는 accounts.Wallet을 구현하며
+// 주어진 해시를 주어진 계정으로 사인한다.
+// 만약 지갑이 이 계정을 가지고 있지 않다면, 계정누수를 회피하기 위해
+// 에러를 반환한다. 비록 이론상으로는 우리는 공유된 키스토어 백엔드를 사용하여
+// 사이닝이 가능하다
 func (w *keystoreWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -98,6 +108,11 @@ func (w *keystoreWallet) SignHash(account accounts.Account, hash []byte) ([]byte
 // with the given account. If the wallet does not wrap this particular account,
 // an error is returned to avoid account leakage (even though in theory we may
 // be able to sign via our shared keystore backend).
+// SignTx 함수는 accounts.Wallet을 구현하며
+// 주어진 트렌젝션을 주어진 계정으로 사인한다.
+// 만약 지갑이 이 계정을 가지고 있지 않다면, 계정누수를 회피하기 위해
+// 에러를 반환한다. 비록 이론상으로는 우리는 공유된 키스토어 백엔드를 사용하여
+// 사이닝이 가능하다
 func (w *keystoreWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -112,6 +127,8 @@ func (w *keystoreWallet) SignTx(account accounts.Account, tx *types.Transaction,
 
 // SignHashWithPassphrase implements accounts.Wallet, attempting to sign the
 // given hash with the given account using passphrase as extra authentication.
+// SignHashWithPassphrase 함수는 accounts.Wallet을 구현하며
+// 주어진 해시를 주어진 계정으로 암호구문을 사용하여 사인한다.
 func (w *keystoreWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -126,6 +143,8 @@ func (w *keystoreWallet) SignHashWithPassphrase(account accounts.Account, passph
 
 // SignTxWithPassphrase implements accounts.Wallet, attempting to sign the given
 // transaction with the given account using passphrase as extra authentication.
+// SignTxWithPassphrase 함수는 accounts.Wallet을 구현하며
+// 주어진 트렌젝션을 주어진 계정으로 암호구문을 사용하여 사인한다.
 func (w *keystoreWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
