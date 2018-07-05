@@ -37,6 +37,7 @@ import (
 )
 
 // Node is a container on which services can be registered.
+// Node는 서비스가 등록될수 있는 컨테이너이다
 type Node struct {
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
 	config   *Config
