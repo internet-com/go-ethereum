@@ -34,6 +34,17 @@ package trie
 // in the case of an odd number. All remaining nibbles (now an even number) fit properly
 // into the remaining bytes. Compact encoding is used for nodes stored on disk.
 
+// Trie 키는 3가지 인코딩으로 다뤄진다.
+// KEYBYTES encoding은 키만을 포함한다. 이 인코딩은 대부분의 api함수의 input이다
+// Hex encoding은 키의 각 4bit를 위한 1바이트를 포함하고 
+// 키의 해당하는 노드가 값을 가지고 있는지 여부로 종결자 바이트인 0x10을 를 연결한다
+// 이 인코딩은 접근하기가 쉽기때문에 메모리에 로드된 노드들을 위해 사용된다
+// COMPACT encoding은 (hex-prefix encoding이라) 이더리움 황서에 의해 정의된 것으로
+// 키와 플레그의 바이트를 포함한다
+// 첫번째 바이트의 높은 4bit는 flag이다. 하위비트는 길이의 홀짝을, 하위 두번째 비트는 키의 노드가 값 노드인지
+// 첫 바이트의 하위 4bit는 짝수의 니블이고 첫 니블이 홀수이면 0이다 나머지 니블들은 남은 바이트에 의해 맞춰진다
+// compact인코딩은 디스크에 저장하기 위해 사용된다
+
 func hexToCompact(hex []byte) []byte {
 	terminator := byte(0)
 	if hasTerm(hex) {
@@ -76,6 +87,8 @@ func keybytesToHex(str []byte) []byte {
 
 // hexToKeybytes turns hex nibbles into key bytes.
 // This can only be used for keys of even length.
+// hexToKeybyte 함수는 hex 니블을 키바이트로 바꾼다
+// 키가 짝수일때만 가능하다
 func hexToKeybytes(hex []byte) []byte {
 	if hasTerm(hex) {
 		hex = hex[:len(hex)-1]
@@ -95,6 +108,7 @@ func decodeNibbles(nibbles []byte, bytes []byte) {
 }
 
 // prefixLen returns the length of the common prefix of a and b.
+// prefixLen함수는 a와 b의 공통 접두어의 길이를 반환한다
 func prefixLen(a, b []byte) int {
 	var i, length = 0, len(a)
 	if len(b) < length {
@@ -109,6 +123,7 @@ func prefixLen(a, b []byte) int {
 }
 
 // hasTerm returns whether a hex key has the terminator flag.
+// hasTerm함수는 hex 키가 terminator flag를 가지고 있는지를 리턴한다
 func hasTerm(s []byte) bool {
 	return len(s) > 0 && s[len(s)-1] == 16
 }

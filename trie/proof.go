@@ -34,6 +34,12 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
+// prove함수는 키를 위한 머클증명을 생성한다. 결과는 키의 값 경로의 모든 인코딩된 노드들을 포함한다
+// 값은 그 자체로 마지막 노드에 포함되며, 증명 검증을 통해 반환될수 있다
+
+// 만약 트라이가 키를 위한 값을 포함하지 않을 경우, 반횐된 검증은 
+// 키의 가징 길게 존재하는 접미사의 모든 노드들를 포함한다
+// 노드로 끝나는 것은 키의 부재를 증명한다
 func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.Putter) error {
 	// Collect all nodes on the path to key.
 	key = keybytesToHex(key)
@@ -95,6 +101,12 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.Putter) error {
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
+// prove함수는 키를 위한 머클증명을 생성한다. 결과는 키의 값 경로의 모든 인코딩된 노드들을 포함한다
+// 값은 그 자체로 마지막 노드에 포함되며, 증명 검증을 통해 반환될수 있다
+
+// 만약 트라이가 키를 위한 값을 포함하지 않을 경우, 반횐된 검증은 
+// 키의 가징 길게 존재하는 접미사의 모든 노드들를 포함한다
+// 노드로 끝나는 것은 키의 부재를 증명한다
 func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.Putter) error {
 	return t.trie.Prove(key, fromLevel, proofDb)
 }
@@ -102,6 +114,9 @@ func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.Putter) err
 // VerifyProof checks merkle proofs. The given proof must contain the value for
 // key in a trie with the given root hash. VerifyProof returns an error if the
 // proof contains invalid trie nodes or the wrong value.
+// VerifyProof 함수는 머클증명을 검사한다. 
+// 주어진 증명은 키를 위한 값이 주어진 루트해시의 trie에 반드시 포함 되어야 한다
+// 이함수는 주어진 값이 잘못되었거나, 검증이 잘못된 트라이 노드를 포함할경우 에러를 반환한다
 func VerifyProof(rootHash common.Hash, key []byte, proofDb DatabaseReader) (value []byte, err error, nodes int) {
 	key = keybytesToHex(key)
 	wantHash := rootHash

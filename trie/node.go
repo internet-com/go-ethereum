@@ -36,6 +36,7 @@ type node interface {
 type (
 	fullNode struct {
 		Children [17]node // Actual trie node data to encode/decode (needs custom encoder)
+		// 실제 en/decoding할 트라이 노드데이터
 		flags    nodeFlag
 	}
 	shortNode struct {
@@ -48,6 +49,7 @@ type (
 )
 
 // EncodeRLP encodes a full node into the consensus RLP format.
+// EncodeRLP함수는 full node를 합의 RLP포멧으로 인코딩한다
 func (n *fullNode) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, n.Children)
 }
@@ -56,6 +58,7 @@ func (n *fullNode) copy() *fullNode   { copy := *n; return &copy }
 func (n *shortNode) copy() *shortNode { copy := *n; return &copy }
 
 // nodeFlag contains caching-related metadata about a node.
+// nodeFlag 구조체는 노드에 대한 캐싱관련 메타데이터를 포함한다
 type nodeFlag struct {
 	hash  hashNode // cached hash of the node (may be nil)
 	gen   uint16   // cache generation counter
@@ -63,6 +66,7 @@ type nodeFlag struct {
 }
 
 // canUnload tells whether a node can be unloaded.
+// canUnload함수는 노드가 unloaded될수 있는지 알려준다
 func (n *nodeFlag) canUnload(cachegen, cachelimit uint16) bool {
 	return !n.dirty && cachegen-n.gen >= cachelimit
 }
@@ -113,6 +117,7 @@ func mustDecodeNode(hash, buf []byte, cachegen uint16) node {
 }
 
 // decodeNode parses the RLP encoding of a trie node.
+// decodeNode 함수는 trie 노드의 RLP 인코딩을 분석한다
 func decodeNode(hash, buf []byte, cachegen uint16) (node, error) {
 	if len(buf) == 0 {
 		return nil, io.ErrUnexpectedEOF
@@ -203,6 +208,7 @@ func decodeRef(buf []byte, cachegen uint16) (node, []byte, error) {
 
 // wraps a decoding error with information about the path to the
 // invalid child node (for debugging encoding issues).
+// 디코딩에러를 잘못된 자식노드의 경로 정보와 함께 포장한다
 type decodeError struct {
 	what  error
 	stack []string

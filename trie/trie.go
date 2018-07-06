@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package trie implements Merkle Patricia Tries.
+// trie 패키지는 머클 패트리샤 트라이를 구현한다
 package trie
 
 import (
@@ -29,9 +30,11 @@ import (
 
 var (
 	// emptyRoot is the known root hash of an empty trie.
+	// emptyRoot는 비어있는 트라이의 루트 해시 초기값
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyState is the known hash of an empty state trie entry.
+	// emptyState는 비어있는 상태 트라이명부의 초기값
 	emptyState = crypto.Keccak256Hash(nil)
 )
 
@@ -43,6 +46,8 @@ var (
 // CacheMisses retrieves a global counter measuring the number of cache misses
 // the trie had since process startup. This isn't useful for anything apart from
 // trie debugging purposes.
+// CacheMisses 함수는 트라이가 처리되기 시작했을때부터 발생한 캐시 미스 횟수를 반환한다
+// 이 함수는 트라이 디버깅 목적 이외에는 유용성이 없다
 func CacheMisses() int64 {
 	return cacheMissCounter.Count()
 }
@@ -50,6 +55,8 @@ func CacheMisses() int64 {
 // CacheUnloads retrieves a global counter measuring the number of cache unloads
 // the trie did since process startup. This isn't useful for anything apart from
 // trie debugging purposes.
+// CacheUnloads 함수는 트라이가 처리되기 시작했을때부터 발생한 캐시 언로드 횟수를 반환한다
+// 이 함수는 트라이 디버깅 목적 이외에는 유용성이 없다
 func CacheUnloads() int64 {
 	return cacheUnloadCounter.Count()
 }
@@ -57,6 +64,9 @@ func CacheUnloads() int64 {
 // LeafCallback is a callback type invoked when a trie operation reaches a leaf
 // node. It's used by state sync and commit to allow handling external references
 // between account and storage tries.
+// leafCallback은 트라이 오퍼레이션이 리프노드에 도달했을때 불리는 콜백타입이다.
+// 이 타입은 계정과 스토리지 트라이 사이의 외부 참조를 허용하기 위해 state sync나 commit에 사용된다
+
 type LeafCallback func(leaf []byte, parent common.Hash) error
 
 // Trie is a Merkle Patricia Trie.
@@ -64,6 +74,9 @@ type LeafCallback func(leaf []byte, parent common.Hash) error
 // Use New to create a trie that sits on top of a database.
 //
 // Trie is not safe for concurrent use.
+// Trie 구조체는 머클 패트리샤 트라이이다. 값이 0일때는 DB에 존재하지 않는 빈 트라이이다
+// New함수를 사용하여 DB상에 트라이를 생성한다
+// thread safe하지 않다
 type Trie struct {
 	db           *Database
 	root         node
@@ -73,16 +86,23 @@ type Trie struct {
 	// cachegen increases by one with each commit operation.
 	// new nodes are tagged with the current generation and unloaded
 	// when their generation is older than than cachegen-cachelimit.
+	// 캐시 생성 값
+	// cachegen 변수는 매 commit동작마다 1씩 증가한다
+	// 새로운 노드들은 현재 세대에 태그되며, 그들의 세대가 cachegen-cachelimit보다 오래되었을 경우
+	// unload된다
 	cachegen, cachelimit uint16
 }
 
 // SetCacheLimit sets the number of 'cache generations' to keep.
 // A cache generation is created by a call to Commit.
+// SetCacheLimit 함수는 캐시 세대의 숫자를 저장하기 위해 사용된다
+// 캐시세대는 commit함수를 호출함에 의해 생성된다
 func (t *Trie) SetCacheLimit(l uint16) {
 	t.cachelimit = l
 }
 
 // newFlag returns the cache flag value for a newly created node.
+// 새롭게 생성된 노드의 캐시 flag를 반환한다
 func (t *Trie) newFlag() nodeFlag {
 	return nodeFlag{dirty: true, gen: t.cachegen}
 }
@@ -93,6 +113,10 @@ func (t *Trie) newFlag() nodeFlag {
 // trie is initially empty and does not require a database. Otherwise,
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
+// New 함수는 DB에 존재하는 루트 노드로 부터 trie를 생성한다
+// 만약 root가 제로해시거나 빈 문자열의 sha3 해시일경우, 트라이는 빈값으로 초기화되며 DB가 필요하지 않다
+// 그렇지 않을경우, db가 null이거나 루트가 db에 없을 경우 이함수는 panic을 발생시킨다.
+// trie 에 접근하는 것은 요구에 따라 db로부터 node들를 읽어들인다
 func New(root common.Hash, db *Database) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
@@ -113,12 +137,16 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 
 // NodeIterator returns an iterator that returns nodes of the trie. Iteration starts at
 // the key after the given start key.
+// NodeIterator 함수는 트라이의 노드를 반환하는 반복자를 반환한다
+// 반복은 주어진 시작키의 다음부터 시작한다
 func (t *Trie) NodeIterator(start []byte) NodeIterator {
 	return newNodeIterator(t, start)
 }
 
 // Get returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
+// Get 함수는 트라이에 저장된 key를 위한 값을 반환한다
+// 값의 바이트는 호출된 함수에의해 수정되면 안된다
 func (t *Trie) Get(key []byte) []byte {
 	res, err := t.TryGet(key)
 	if err != nil {
@@ -130,6 +158,9 @@ func (t *Trie) Get(key []byte) []byte {
 // TryGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
+// TryGet 함수는 트라이에 저장된 key를 위한 값을 반환한다
+// 값의 바이트는 호출된 함수에의해 수정되면 안된다
+// 만약 노드가 db에서 찾아지지 안흔다면 MissingNodeError가 반환된다
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
 	key = keybytesToHex(key)
 	value, newroot, didResolve, err := t.tryGet(t.root, key, 0)
@@ -183,6 +214,10 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 //
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
+// Update 함수는 트라이의 값을 키와 연관시킨다
+// 다음 콜들이 값을 반환한다
+// 만약 값의 길이가 0일경우 트라이에 존재하는 모든값은 삭제되고 get함수는 nil을 반환한다
+// 값의 바이트들은 그들이 트라이에 저장되어있는 동안에는 호출자에의해 수정되어서는 안된다
 func (t *Trie) Update(key, value []byte) {
 	if err := t.TryUpdate(key, value); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
@@ -197,6 +232,11 @@ func (t *Trie) Update(key, value []byte) {
 // stored in the trie.
 //
 // If a node was not found in the database, a MissingNodeError is returned.
+// TryUpdate 함수는 트라이의 값을 키와 연관시킨다
+// 다음 콜들이 값을 반환한다
+// 만약 값의 길이가 0일경우 트라이에 존재하는 모든값은 삭제되고 get함수는 nil을 반환한다
+// 값의 바이트들은 그들이 트라이에 저장되어있는 동안에는 호출자에의해 수정되어서는 안된다
+// 만약 노드가 db에서 찾아지지 안흔다면 MissingNodeError가 반환된다
 func (t *Trie) TryUpdate(key, value []byte) error {
 	k := keybytesToHex(key)
 	if len(value) != 0 {
@@ -285,6 +325,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 }
 
 // Delete removes any existing value for key from the trie.
+// Delete 함수는 키를 위한 값을 트라이로부터 제거한다
 func (t *Trie) Delete(key []byte) {
 	if err := t.TryDelete(key); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
@@ -293,6 +334,8 @@ func (t *Trie) Delete(key []byte) {
 
 // TryDelete removes any existing value for key from the trie.
 // If a node was not found in the database, a MissingNodeError is returned.
+// TryDelete 함수는 키를 위한 값을 트라이로부터 제거한다
+// 만약 노드가 db에서 찾아지지 안흔다면 MissingNodeError가 반환된다
 func (t *Trie) TryDelete(key []byte) error {
 	k := keybytesToHex(key)
 	_, n, err := t.delete(t.root, nil, k)
@@ -306,6 +349,8 @@ func (t *Trie) TryDelete(key []byte) error {
 // delete returns the new root of the trie with key deleted.
 // It reduces the trie to minimal form by simplifying
 // nodes on the way up after deleting recursively.
+// delete함수는 삭제된 키로부터 새로운 트라이의 루트를 반환한다
+// 재귀적으로 삭제된 노드들이 최소의 트라이를 유지하도록하는 방법이다
 func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 	switch n := n.(type) {
 	case *shortNode:
@@ -320,6 +365,9 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 		// from the subtrie. Child can never be nil here since the
 		// subtrie must contain at least two other values with keys
 		// longer than n.Key.
+		// 키가 n.Key의 값보다 길다. 서브 트라이로 부터 남겨진 접미사들을 제거한다
+		// 자식들은 nil이여서는 안된다 서브트리는 n.key보다 긴 키와 관계된 
+		// 최소한 2개의 다른 값을 반드시 가져야 한다
 		dirty, child, err := t.delete(n.Val, append(prefix, key[:len(n.Key)]...), key[len(n.Key):])
 		if !dirty || err != nil {
 			return false, n, err
@@ -332,6 +380,10 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 			// always creates a new slice) instead of append to
 			// avoid modifying n.Key since it might be shared with
 			// other nodes.
+			// 서브트리로부터의 삭제는 다른 short 노드를 위해 감소된다.
+			// 새로운 shortnode의 생성을 피하기 위해 노드들을 합병한다. 
+			// 다른 노드들에게 공유될수 있기 때문에 append 대신 concat을 사용하여 
+			// n.Key의 수정을 피한다 
 			return true, &shortNode{concat(n.Key, child.Key...), child.Val, t.newFlag()}, nil
 		default:
 			return true, &shortNode{n.Key, child, t.newFlag()}, nil
@@ -355,6 +407,11 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 		// When the loop is done, pos contains the index of the single
 		// value that is left in n or -2 if n contains at least two
 		// values.
+		// 삭제 이후에 얼마나 많은 비어있지 않은 엔트리가 남았는지 체크하고
+		// 오직 하나의 엔트리가 남았을때 full노드를 short노드로 감소시킨다
+		// n은 삭제되기전 최소한 2개의 자식을 가지고 있어야 하므로 n은 절대로 nil로 줄어들수 없다
+		// 반복이 끝나면 만약 n이 최소한 2개의 값을 가질 경우 
+		// pos는 n이나 -2에 남겨진 단일값의 인덱스를 포함한다
 		pos := -1
 		for i, cld := range n.Children {
 			if cld != nil {
@@ -374,6 +431,10 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 				// shortNode{..., shortNode{...}}.  Since the entry
 				// might not be loaded yet, resolve it just for this
 				// check.
+				// 만약 남아있는 엔트리가 short node라면, 이것은 n을 대체하고 
+				// 앞쪽을 향하는 일어버린 니블을 키로서 갖는다
+				// 이것은 유효하지 않은 숏노드의 생성을 피한다
+				// 엔트리가 아직 로딩되지 않았기때문에 이러한 체크로만 해결한다
 				cnode, err := t.resolve(n.Children[pos], prefix)
 				if err != nil {
 					return false, nil, err
@@ -385,9 +446,11 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 			}
 			// Otherwise, n is replaced by a one-nibble short node
 			// containing the child.
+			// 아니라면, n은 자식을 포함하는 one-nibble short node에 의해 대체된다
 			return true, &shortNode{[]byte{byte(pos)}, n.Children[pos], t.newFlag()}, nil
 		}
 		// n still contains at least two values and cannot be reduced.
+		// n은 아직 최소 2개의 값을 포함하고 있으며, 줄어들수 없다
 		return true, n, nil
 
 	case valueNode:
@@ -400,6 +463,8 @@ func (t *Trie) delete(n node, prefix, key []byte) (bool, node, error) {
 		// We've hit a part of the trie that isn't loaded yet. Load
 		// the node and delete from it. This leaves all child nodes on
 		// the path to the value in the trie.
+		// 아직 load되지 않은 트라이의 일부를 만났을때, 노드를 load하고 삭제한다
+		// 트리 안의 값에 대한 경로상의 모든 자식 노드를 떠난다
 		rn, err := t.resolveHash(n, prefix)
 		if err != nil {
 			return false, nil, err
@@ -443,10 +508,14 @@ func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 
 // Root returns the root hash of the trie.
 // Deprecated: use Hash instead.
+// Root함수는 트라이의 루트해시를 반환한다
+// 제거됨: Hash함수를 사용하세요
 func (t *Trie) Root() []byte { return t.Hash().Bytes() }
 
 // Hash returns the root hash of the trie. It does not write to the
 // database and can be used even if the trie doesn't have one.
+// Root함수는 트라이의 루트해시를 반환한다
+// DB에 쓰지 않고, trie가 해시를 가지고 있지 않을 때에도 사용가능하다
 func (t *Trie) Hash() common.Hash {
 	hash, cached, _ := t.hashRoot(nil, nil)
 	t.root = cached
@@ -455,6 +524,7 @@ func (t *Trie) Hash() common.Hash {
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
+// Commit함수는 트라이의 메모리 dB에 모든 노드를 쓰고, 내부참조나 계정트라이를 위한 외부참조를 관리한다
 func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")

@@ -25,6 +25,8 @@ import (
 // MissingNodeError is returned by the trie functions (TryGet, TryUpdate, TryDelete)
 // in the case where a trie node is not present in the local database. It contains
 // information necessary for retrieving the missing node.
+// MissingNodeError는 트라이노드가 local DB에 현재 없을때 트라이 함수들에 의해 반환된다
+// 잃어버린 노드를 반환하기위해 필요한 정보를 포함한다
 type MissingNodeError struct {
 	NodeHash common.Hash // hash of the missing node
 	Path     []byte      // hex-encoded path to the missing node

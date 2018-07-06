@@ -26,9 +26,11 @@ import (
 )
 
 // secureKeyPrefix is the database key prefix used to store trie node preimages.
+// secureKeyPrefix는 트라이 노드의 사전 이미지를 저정하기 위해 사용되는 DB key 접두어
 var secureKeyPrefix = []byte("secure-key-")
 
 // secureKeyLength is the length of the above prefix + 32byte hash.
+// secureKeyLength는 securekeyprefix + 32byte 해시
 const secureKeyLength = 11 + 32
 
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
@@ -43,6 +45,9 @@ type DatabaseReader interface {
 // Database is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
+// Database 구조체는 트라이 데이터 구조체와 디스크 데이터베이스 사이의 중간 쓰기 계층이다.
+// 목적은 메모레에 트라이를 누적하고 주기적으로만 몇개의 트리를 디스크에 플러쉬하고
+// 남은것에 대한 가비지 컬렉션을 위해서이다
 type Database struct {
 	diskdb ethdb.Database // Persistent storage for matured trie nodes
 
@@ -62,6 +67,7 @@ type Database struct {
 
 // cachedNode is all the information we know about a single cached node in the
 // memory database write layer.
+// cachedNode는 메모리 데이터베이스 쓰기 계층에 캐싱된 하나의 노드에 대한 모든 정보이다
 type cachedNode struct {
 	blob     []byte              // Cached data block of the trie node
 	parents  int                 // Number of live nodes referencing this one
@@ -70,6 +76,8 @@ type cachedNode struct {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
+// NewDatabase 함수는 디스크에 쓰여지거나, 가비지 콜렉트 되기전의 
+// 수명이 짧은 트라이 컨텐츠를 저장하기 위한 새로운 트라이 데이테베이스 를 생성한다
 func NewDatabase(diskdb ethdb.Database) *Database {
 	return &Database{
 		diskdb: diskdb,
@@ -81,12 +89,15 @@ func NewDatabase(diskdb ethdb.Database) *Database {
 }
 
 // DiskDB retrieves the persistent storage backing the trie database.
+// DiskDB는 trie DB를 지원하기 위한 지속되는 스토리지를 반환한다
 func (db *Database) DiskDB() DatabaseReader {
 	return db.diskdb
 }
 
 // Insert writes a new trie node to the memory database if it's yet unknown. The
 // method will make a copy of the slice.
+// Insert 함수는 만약 이 노드가 알려지지 않았다면 새로운 트라이 노드를 메모리 DB에 쓴다 
+// 조각의 복사본을 만들것이다
 func (db *Database) Insert(hash common.Hash, blob []byte) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -95,6 +106,7 @@ func (db *Database) Insert(hash common.Hash, blob []byte) {
 }
 
 // insert is the private locked version of Insert.
+// insert함수는 lock버전의 Insert 이다
 func (db *Database) insert(hash common.Hash, blob []byte) {
 	if _, ok := db.nodes[hash]; ok {
 		return
@@ -110,6 +122,9 @@ func (db *Database) insert(hash common.Hash, blob []byte) {
 // yet unknown. The method will make a copy of the slice.
 //
 // Note, this method assumes that the database's lock is held!
+// insertPreimage함수는 알려지지 않은 새로운 트라이노드의 사전이미지를 메모리 db에 쓴다
+// 조각의 사본을 만들것이다
+// 이 메소드는 DB lock이 걸려있다고 가정한다
 func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
 	if _, ok := db.preimages[hash]; ok {
 		return
@@ -120,6 +135,8 @@ func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
 
 // Node retrieves a cached trie node from memory. If it cannot be found cached,
 // the method queries the persistent database for the content.
+// Node함수는 메모리로 부터 캐싱된 트라이노드를 반환한다. 
+// 만약 캐시에서 찾지 못한다면 지속적인 DB로부 컨텐츠를 문의한다
 func (db *Database) Node(hash common.Hash) ([]byte, error) {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
@@ -135,6 +152,8 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
 // found cached, the method queries the persistent database for the content.
+// preimage 함수는 캐싱된 트라이노드 사전이미지를 반환한다
+// 만약 캐시에서 찾지 못한다면 지속적인 DB로부 컨텐츠를 문의한다
 func (db *Database) preimage(hash common.Hash) ([]byte, error) {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
@@ -151,6 +170,8 @@ func (db *Database) preimage(hash common.Hash) ([]byte, error) {
 // secureKey returns the database key for the preimage of key, as an ephemeral
 // buffer. The caller must not hold onto the return value because it will become
 // invalid on the next call.
+// secureKey함수는 키의 사전 이미지를 위한 DB키를 임시버퍼에 반환한다
+// 해당값은 다음 호출에서 무효해지기 때문에 호출자는 해당 값을 저장하면 안된다 
 func (db *Database) secureKey(key []byte) []byte {
 	buf := append(db.seckeybuf[:0], secureKeyPrefix...)
 	buf = append(buf, key...)
@@ -160,6 +181,8 @@ func (db *Database) secureKey(key []byte) []byte {
 // Nodes retrieves the hashes of all the nodes cached within the memory database.
 // This method is extremely expensive and should only be used to validate internal
 // states in test code.
+// nodes함수는 메모리 DB에 캐싱된 모든 노드의 해시를 반환한다.
+// 이 메소드는 굉장비 비싸고 테스트 코드의 내부 상태 검증에만 쓰여야한다
 func (db *Database) Nodes() []common.Hash {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
@@ -174,6 +197,7 @@ func (db *Database) Nodes() []common.Hash {
 }
 
 // Reference adds a new reference from a parent node to a child node.
+// Reference함수는 부모로부터 자식으로 가는 새로운 참조를 추가한다
 func (db *Database) Reference(child common.Hash, parent common.Hash) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
@@ -182,6 +206,7 @@ func (db *Database) Reference(child common.Hash, parent common.Hash) {
 }
 
 // reference is the private locked version of Reference.
+// reference함수는 Reference함수의 lock버전이다
 func (db *Database) reference(child common.Hash, parent common.Hash) {
 	// If the node does not exist, it's a node pulled from disk, skip
 	node, ok := db.nodes[child]
@@ -197,6 +222,7 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a parent node to a child node.
+// Dereference함수는 부모노드에서 자식노드로의 참조를 제거한다
 func (db *Database) Dereference(child common.Hash, parent common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -213,6 +239,7 @@ func (db *Database) Dereference(child common.Hash, parent common.Hash) {
 }
 
 // dereference is the private locked version of Dereference.
+// dereference함수는 Dereference함수의 lock버전이다
 func (db *Database) dereference(child common.Hash, parent common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
@@ -241,6 +268,9 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
+// Commit함수는 특정 노드의 모든 자식노드에 대해 반복하며 디스크에 쓰고
+// 양쪽 방향의 참조를 강제로 해체한다
+// 부수효과로 현재까지 누적된 모든 사전이미지도 같이 써진다
 func (db *Database) Commit(node common.Hash, report bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
@@ -303,6 +333,7 @@ func (db *Database) Commit(node common.Hash, report bool) error {
 }
 
 // commit is the private locked version of Commit.
+// commit함수는 Commit함수의 lock버전이다
 func (db *Database) commit(hash common.Hash, batch ethdb.Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
@@ -331,6 +362,9 @@ func (db *Database) commit(hash common.Hash, batch ethdb.Batch) error {
 // persisted trie is removed from the cache. The reason behind the two-phase
 // commit is to ensure consistent data availability while moving from memory
 // to disk.
+// uncache함수는 commit 동작의 후처리 스텝으로 이미 기록된 트라이가 캐시로부터 제거된다.
+// commit이 두번으로 이뤄진 이유는 메모리에서 db로 데이터를 옮길때의 
+// 데이터의 유효성을 보장하기 위해서이다
 func (db *Database) uncache(hash common.Hash) {
 	// If the node does not exist, we're done on this path
 	node, ok := db.nodes[hash]
@@ -347,6 +381,7 @@ func (db *Database) uncache(hash common.Hash) {
 
 // Size returns the current storage size of the memory cache in front of the
 // persistent database layer.
+// Size 함수는 지속되는 db레이어의 앞쪽의 메모리캐시의 저장소 사이즈를 반환한다
 func (db *Database) Size() common.StorageSize {
 	db.lock.RLock()
 	defer db.lock.RUnlock()

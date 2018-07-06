@@ -25,6 +25,7 @@ import (
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
+// Iterator는 trie를 탐색하는 키-값 트라이 반복자이다
 type Iterator struct {
 	nodeIt NodeIterator
 
@@ -34,6 +35,7 @@ type Iterator struct {
 }
 
 // NewIterator creates a new key-value iterator from a node iterator
+// NewIterator함수는 새로운 키-값 반복자를 node 반복자로 부터 생성한다
 func NewIterator(it NodeIterator) *Iterator {
 	return &Iterator{
 		nodeIt: it,
@@ -41,6 +43,7 @@ func NewIterator(it NodeIterator) *Iterator {
 }
 
 // Next moves the iterator forward one key-value entry.
+// Next함수는 반복자를 key-value entry 앞으로 하나 옮긴다
 func (it *Iterator) Next() bool {
 	for it.nodeIt.Next(true) {
 		if it.nodeIt.Leaf() {
@@ -56,6 +59,7 @@ func (it *Iterator) Next() bool {
 }
 
 // NodeIterator is an iterator to traverse the trie pre-order.
+// NodeIterator는 trie를 pre-order로 탐색하는 반복자이다
 type NodeIterator interface {
 	// Next moves the iterator to the next node. If the parameter is false, any child
 	// nodes will be skipped.
@@ -84,6 +88,8 @@ type NodeIterator interface {
 
 // nodeIteratorState represents the iteration state at one particular node of the
 // trie, which can be resumed at a later invocation.
+// nodeIteratorState 구조체는 트라이의 특정노드의 반복상태를 나타내며, 
+// 나중 호출시 복귀가 가능하다
 type nodeIteratorState struct {
 	hash    common.Hash // Hash of the node being iterated (nil if not standalone)
 	node    node        // Trie node being iterated
@@ -100,9 +106,11 @@ type nodeIterator struct {
 }
 
 // iteratorEnd is stored in nodeIterator.err when iteration is done.
+// iteratorEnd는 iterator가 끝났을때, nodeIterator.err에 저장된다
 var iteratorEnd = errors.New("end of iteration")
 
 // seekError is stored in nodeIterator.err if the initial seek has failed.
+// seekError는 초기 검색이 실패했을 경우 nodeIterator.err에 저장된다
 type seekError struct {
 	key []byte
 	err error
@@ -175,6 +183,9 @@ func (it *nodeIterator) Error() error {
 // further nodes. In case of an internal error this method returns false and
 // sets the Error field to the encountered failure. If `descend` is false,
 // skips iterating over any subnodes of the current node.
+// Nex함수는 다음 노드로 반복자를 옮기고 노드가 더있는지를 반환한다
+// 내부적인 에러상태에서 이함수는 false를 리턴하고 마주친 에러를 error필드에 기록한다
+// 만약 descend가 false라면, 현재노드의 서브노드에 대한 반복은 스킵한다
 func (it *nodeIterator) Next(descend bool) bool {
 	if it.err == iteratorEnd {
 		return false
@@ -213,6 +224,7 @@ func (it *nodeIterator) seek(prefix []byte) error {
 }
 
 // peek creates the next state of the iterator.
+// peek함수는 반복자의 다음 상태를 생성한다
 func (it *nodeIterator) peek(descend bool) (*nodeIteratorState, *int, []byte, error) {
 	if len(it.stack) == 0 {
 		// Initialize the iterator if we've just started.
@@ -340,6 +352,8 @@ type differenceIterator struct {
 // NewDifferenceIterator constructs a NodeIterator that iterates over elements in b that
 // are not in a. Returns the iterator, and a pointer to an integer recording the number
 // of nodes seen.
+// NewDifferenceIterator함수는 a에는 존재하지 않은 b의 원소에서 반복하는 노드 반복자를 만든다
+// 반환값은 반복자와 노드의 갯수이다
 func NewDifferenceIterator(a, b NodeIterator) (NodeIterator, *int) {
 	a.Next(true)
 	it := &differenceIterator{
@@ -443,6 +457,8 @@ type unionIterator struct {
 // NewUnionIterator constructs a NodeIterator that iterates over elements in the union
 // of the provided NodeIterators. Returns the iterator, and a pointer to an integer
 // recording the number of nodes visited.
+// NewUnionIterator함수는 제공된 노드반복자들에 의해 제공되는 모든 원소들을 반복하는 
+// 노드반복자를 생성하고, 방문한 노드의 갯수를 기록한 숫자를 반환한다
 func NewUnionIterator(iters []NodeIterator) (NodeIterator, *int) {
 	h := make(nodeIteratorHeap, len(iters))
 	copy(h, iters)
@@ -490,6 +506,8 @@ func (it *unionIterator) Path() []byte {
 // In the case that descend=false - eg, we're asked to ignore all subnodes of the
 // current node - we also advance any iterators in the heap that have the current
 // path as a prefix.
+// Next 함수는 반복이 끝난 통합트리의 다음 노드를 반환한다
+
 func (it *unionIterator) Next(descend bool) bool {
 	if len(*it.items) == 0 {
 		return false

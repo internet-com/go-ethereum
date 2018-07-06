@@ -35,6 +35,7 @@ type hasher struct {
 }
 
 // hashers live in a global db.
+// 해쉬자는 글로벌 db에 저장된다
 var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{tmp: new(bytes.Buffer), sha: sha3.NewKeccak256()}
@@ -53,6 +54,8 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
+// 해시 함수는 노드를 해시 노드로 허물고, 원래의 것을 대체하기 위해 
+// 계산된 해시로 초기화된 원본 노드의 복사본을 반환한다
 func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
 	// If we're not storing the node, just hashing, use available cached data
 	if hash, dirty := n.cache(); hash != nil {
@@ -100,6 +103,8 @@ func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
 // hashChildren replaces the children of a node with their hashes if the encoded
 // size of the child is larger than a hash, returning the collapsed node as well
 // as a replacement for the original node with the child hashes cached in.
+// hashChilderen 함수는 자녀의 인코딩된 사이즈가 해시보다 클때 노드의 자녀들을 그들의 해시로 치환하고
+// 변환된 노드뿐만 아니라 차일드 캐시가 치환된 원본노드를 위한 대체까지 반환한다
 func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 	var err error
 
@@ -150,6 +155,8 @@ func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 // store hashes the node n and if we have a storage layer specified, it writes
 // the key/value pair to it and tracks any node->child references as well as any
 // node->external trie references.
+// store함수는 node n을 해시하고, 저장 계층이 있을 경우 키/값 쌍을 쓰고,
+//노드가 자녀를 참조하는 것뿐아니라 노드가 외부 트라이를 참조하는 것을 추적한다
 func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 	// Don't store hashes or empty nodes.
 	if _, isHash := n.(hashNode); n == nil || isHash {
