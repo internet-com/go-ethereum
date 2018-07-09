@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package types contains data types related to Ethereum consensus.
+// types 패키지는 이더리움 합의와 관련된 데이터 타입을 정의한다
 package types
 
 import (
@@ -40,9 +41,11 @@ var (
 // A BlockNonce is a 64-bit hash which proves (combined with the
 // mix-hash) that a sufficient amount of computation has been carried
 // out on a block.
+// BlockNone는 64비트 해시로서 정해진 량의 연산이 블록에 대해 진행되었음을 증명한다
 type BlockNonce [8]byte
 
 // EncodeNonce converts the given integer to a block nonce.
+// EncodeNode는 주어진 정수를 블록 논스로 변환한다
 func EncodeNonce(i uint64) BlockNonce {
 	var n BlockNonce
 	binary.BigEndian.PutUint64(n[:], i)
@@ -67,6 +70,7 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
 // Header represents a block header in the Ethereum blockchain.
+// Header구조체는 이더리움 블록체인의 블록헤더를 나타낸다
 type Header struct {
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
 	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
@@ -98,11 +102,13 @@ type headerMarshaling struct {
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
+// 해쉬함수는 RLP encoding된 헤더의 keccak256 블록해시를 반환한다
 func (h *Header) Hash() common.Hash {
 	return rlpHash(h)
 }
 
 // HashNoNonce returns the hash which is used as input for the proof-of-work search.
+// HashNoNonce함수는 PoW의 인풋으로 사용될 해시를 반환한다
 func (h *Header) HashNoNonce() common.Hash {
 	return rlpHash([]interface{}{
 		h.ParentHash,
@@ -136,12 +142,14 @@ func rlpHash(x interface{}) (h common.Hash) {
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
+// Body는 블록의 데이터 내용을 저장하고 옮기는 데이터 컨테이너 이다
 type Body struct {
 	Transactions []*Transaction
 	Uncles       []*Header
 }
 
 // Block represents an entire block in the Ethereum blockchain.
+// Block구조체는 이더리움 블록체인의 전체 블록을 나타낸다
 type Block struct {
 	header       *Header
 	uncles       []*Header
