@@ -45,15 +45,19 @@ var ErrInvalidDumpMagic = errors.New("invalid dump magic")
 
 var (
 	// maxUint256 is a big integer representing 2^256-1
+	// 2^256 -1을 표현하는 정수
 	maxUint256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 
 	// sharedEthash is a full instance that can be shared between multiple users.
+	// 다수의 유저에게 sharing가능한 full instance
 	sharedEthash = New(Config{"", 3, 0, "", 1, 0, ModeNormal})
 
 	// algorithmRevision is the data structure version used for file naming.
+	// 파일 이름을 위한 데이터 구조 버전
 	algorithmRevision = 23
 
 	// dumpMagic is a dataset dump header to sanity check a data dump.
+	// 무결성 체크를 위한 데이터셋 덤프 헤더
 	dumpMagic = []uint32{0xbaddcafe, 0xfee1dead}
 )
 
@@ -222,7 +226,7 @@ type cache struct {
 
 // newCache creates a new ethash verification cache and returns it as a plain Go
 // interface to be usable in an LRU cache.
-// newCache 함수는 새로운 ethash 검증캐시를 만들고 LRI 캐시에 유용할만한 
+// newCache 함수는 새로운 ethash 검증캐시를 만들고 LRU 캐시에 유용할만한 
 // 고인터페이스로 반환한다
 func newCache(epoch uint64) interface{} {
 	return &cache{epoch: epoch}
@@ -296,10 +300,15 @@ func (c *cache) finalizer() {
 // ethash 캐시를 약간의 메타데이터와 함께 포함한다
 type dataset struct {
 	epoch   uint64    // Epoch for which this cache is relevant
+	// 이 캐시가 관련된 에포크
 	dump    *os.File  // File descriptor of the memory mapped cache
+	// 메모리 맵 캐시의 파일 디스크립터
 	mmap    mmap.MMap // Memory map itself to unmap before releasing
+	// 해지전에 unmap할 매모리맵
 	dataset []uint32  // The actual cache data content
+	// 캐시 데이터의 실제 내용
 	once    sync.Once // Ensures the cache is generated only once
+	// 캐시가 한번만 생성되었음을 보증
 }
 
 // newDataset creates a new ethash mining dataset and returns it as a plain Go
@@ -449,7 +458,7 @@ type Ethash struct {
 }
 
 // New creates a full sized ethash PoW scheme.
-// 전체 크기의 ethash pow 스킴을 생성한다
+// 전체 크기의 ethash pow 계획을 생성한다
 func New(config Config) *Ethash {
 	if config.CachesInMem <= 0 {
 		log.Warn("One ethash cache must always be in memory", "requested", config.CachesInMem)

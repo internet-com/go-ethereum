@@ -72,7 +72,7 @@ type Engine interface {
 	// given engine. Verifying the seal may be done optionally here, or explicitly
 	// via the VerifySeal method.
 	// VerifyHeader함수는 헤더가 주어진 엔진의 합의 룰을 따르는지 확인한다
-	// 봉인을 검증하는 것은 선택적으로 진행될수도 있으며, VerifySeal함수를 통해
+	// 인장을 검증하는 것은 선택적으로 진행될수도 있으며, VerifySeal함수를 통해
 	// 명시적으로 진행되기도 한다
 	VerifyHeader(chain ChainReader, header *types.Header, seal bool) error
 
@@ -92,7 +92,7 @@ type Engine interface {
 
 	// VerifySeal checks whether the crypto seal on a header is valid according to
 	// the consensus rules of the given engine.
-	// VerifySeal 함수는 헤더의 암호화된 봉인이 주어진 엔진의 룰을 따르는지 검증한다
+	// VerifySeal 함수는 헤더의 암호화된 인장이 주어진 엔진의 룰을 따르는지 검증한다
 	VerifySeal(chain ChainReader, header *types.Header) error
 
 	// Prepare initializes the consensus fields of a block header according to the
@@ -113,7 +113,7 @@ type Engine interface {
 
 	// Seal generates a new block for the given input block with the local miner's
 	// seal place on top.
-	// Seal 함수는 주어진 인풋을 위해  블록 로컬 마이너의 밀봉을 탑으로 설정한 새 블록을 생성한다
+	// Seal 함수는 주어진 인풋을 위해  블록 로컬 마이너의 인장을 탑으로 설정한 새 블록을 생성한다
 	Seal(chain ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error)
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty

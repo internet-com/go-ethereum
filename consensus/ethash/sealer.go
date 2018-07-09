@@ -32,9 +32,8 @@ import (
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the block's difficulty requirements.
-// 이 함수는 실제 POW 마이너로 시드를 시작으로 
-// 올바른 블록의 난이도를 만족하는 논스를 찾는다 
-// mine 함수에서 블록을 발견하면 채널로 블록이 넘어온다. 
+// 함수는 컨센서스의 엔진을 구현하고, 블록의 난이도 요구조건을 만족하는 논스를 찾는다
+// @sigmoid: mine 함수에서 블록을 발견하면 채널로 블록이 넘어온다. 
 // 다른 마이닝 스레드들이 참조하는 abot채널을 닫는다
 func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	// If we're running a fake PoW, simply return a 0 nonce immediately

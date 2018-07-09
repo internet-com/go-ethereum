@@ -35,6 +35,11 @@ import (
 )
 
 // Ethash proof-of-work protocol constants.
+// Ethash PoW 프로토콜 상수
+// 블록 보상
+// 비잔티움 이후 블록 보상
+// 블록당 허용되는 최대 최대 엉클수
+// 미래 블록으로 판단하는 기준시간
 var (
 	FrontierBlockReward    *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
 	ByzantiumBlockReward   *big.Int = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
@@ -46,6 +51,7 @@ var (
 // prevent engine specific errors from being referenced in the remainder of the
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
+// 블록이 유효하지 않음을 표현하는 메시지들
 var (
 	errLargeBlockTime    = errors.New("timestamp too big")
 	errZeroBlockTime     = errors.New("timestamp equals parent's")
@@ -60,6 +66,8 @@ var (
 
 // Author implements consensus.Engine, returning the header's coinbase as the
 // proof-of-work verified author of the block.
+// Author함수는 합의 엔진을 구현하며, 헤더의 코인베이스를 
+// 블록의 POW 검증된 생성자로서 반환한다:w
 func (ethash *Ethash) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }

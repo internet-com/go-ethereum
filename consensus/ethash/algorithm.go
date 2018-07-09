@@ -253,6 +253,8 @@ func fnvHash(mix []uint32, data []uint32) {
 
 // generateDatasetItem combines data from 256 pseudorandomly selected cache nodes,
 // and hashes that to compute a single dataset node.
+// generateDatasetItem 함수는 캐시노드로 부터 슈도랜덤하게 선택된 256개의 데이터를 조합하고
+// 단일 데이터셋 노드를 계산하기 위해 해시한다
 func generateDatasetItem(cache []uint32, index uint32, keccak512 hasher) []byte {
 	// Calculate the number of theoretical rows (we use one buffer nonetheless)
 	rows := uint32(len(cache) / hashWords)
@@ -286,6 +288,8 @@ func generateDatasetItem(cache []uint32, index uint32, keccak512 hasher) []byte 
 
 // generateDataset generates the entire ethash dataset for mining.
 // This method places the result into dest in machine byte order.
+// generateDataset함수는 마이닝을 위한 전체 ethashdataset을 생성한다
+// 이 함수는 결과를 머신 byte순서로 저장한다
 func generateDataset(dest []uint32, epoch uint64, cache []uint32) {
 	// Print some debug logs to allow analysis on low end devices
 	logger := log.New("epoch", epoch)
@@ -353,6 +357,7 @@ func generateDataset(dest []uint32, epoch uint64, cache []uint32) {
 
 // hashimoto aggregates data from the full dataset in order to produce our final
 // value for a particular header hash and nonce.
+// hashmoto 함수는 헤더 해시와 논스의 최종 값을 생성하기 위해 full dataset으로 부터 데이터를 수집한다
 func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32) []uint32) ([]byte, []byte) {
 	// Calculate the number of theoretical rows (we use one buffer nonetheless)
 	rows := uint32(size / mixBytes)
@@ -396,6 +401,7 @@ func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32)
 // hashimotoLight aggregates data from the full dataset (using only a small
 // in-memory cache) in order to produce our final value for a particular header
 // hash and nonce.
+// hashmoto 함수는 헤더 해시와 논스의 최종 값을 생성하기 위해 full dataset으로 부터 데이터를 수집한다
 func hashimotoLight(size uint64, cache []uint32, hash []byte, nonce uint64) ([]byte, []byte) {
 	keccak512 := makeHasher(sha3.NewKeccak512())
 
