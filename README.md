@@ -17,6 +17,7 @@ v0.2 현재 126개 파일에 약 1000줄의 주석이 한글로 변환되었습�
  	* package keystore: secp256k1 개인키의 암호화된 저장소를 구현
  	* package usbwallet: 하드웨어 지갑 지원
  		* package trezor: trezor wallet
+![](https://steemitimages.com/0x0/https://cdn.steemitimages.com/DQmeUEKp6onHu5ZpG3Yj44fa2g4T6T7kbmRsruxSqoUZpAa/image.png)
 ---
 ### bmt
  * package bmt: 바이너리 머클트리를 구현한다
@@ -221,6 +222,7 @@ v0.2 현재 126개 파일에 약 1000줄의 주석이 한글로 변환되었습�
 ---
 ### trie
  * package trie: 머클 패트리샤 트리의 구현
+ ![](https://steemitimages.com/0x0/https://cdn.steemitimages.com/DQmZLrWnEnEDyy4u9Cxp1r8aPHjiQfExCpHzd7dxnhxvAtG/image.png)
 ---
 ### whisper
  * package mailserver
