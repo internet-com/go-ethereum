@@ -38,7 +38,9 @@ import (
 // wallet or account.
 type URL struct {
 	Scheme string // Protocol scheme to identify a capable account backend
+	// 사용가능한 계정의 백엔드를 구분 하기 위한 프로토콜 계획
 	Path   string // Path for the backend to identify a unique entity
+	// 특징값을 구분하기 위한 백엔드의 경로
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.

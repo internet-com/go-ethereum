@@ -26,7 +26,7 @@ import (
 
 // Manager is an overarching account manager that can communicate with various
 // backends for signing transactions.
-// 
+// 매니져는 고수준의 계정관리자로서 트렌젝션 서명을 위해 다양한 백엔드와 통신한다 
 type Manager struct {
 	backends map[reflect.Type][]Backend // Index of backends currently registered
 	updaters []event.Subscription       // Wallet update subscriptions for all backends
@@ -76,6 +76,7 @@ func NewManager(backends ...Backend) *Manager {
 }
 
 // Close terminates the account manager's internal notification processes.
+// Close함수는 계정 관리자의 내부 알람 프로세스를 종료시킨다
 func (am *Manager) Close() error {
 	errc := make(chan error)
 	am.quit <- errc
@@ -123,11 +124,13 @@ func (am *Manager) update() {
 }
 
 // Backends retrieves the backend(s) with the given type from the account manager.
+// Backends 함수는 계정관리자로 부터 주어진 타입의 백엔드들을 반환한다
 func (am *Manager) Backends(kind reflect.Type) []Backend {
 	return am.backends[kind]
 }
 
 // Wallets returns all signer accounts registered under this account manager.
+// Wallets함수는 계정관리자에 등록된 모든 서명 계정을 반환한다
 func (am *Manager) Wallets() []Wallet {
 	am.lock.RLock()
 	defer am.lock.RUnlock()
@@ -138,6 +141,7 @@ func (am *Manager) Wallets() []Wallet {
 }
 
 // Wallet retrieves the wallet associated with a particular URL.
+// Wallet함수는 주어진 URL에 연계된 지갑을 반환한다
 func (am *Manager) Wallet(url string) (Wallet, error) {
 	am.lock.RLock()
 	defer am.lock.RUnlock()
@@ -157,6 +161,8 @@ func (am *Manager) Wallet(url string) (Wallet, error) {
 // Find attempts to locate the wallet corresponding to a specific account. Since
 // accounts can be dynamically added to and removed from wallets, this method has
 // a linear runtime in the number of wallets.
+// Find함수는 주어진 계정에 관련된 지갑을 반환한다.
+// 계정은 지갑으로부터 동적으로 추가되거나 삭제될수 있기때문에, 이 함수는 선형시간이 걸린다
 func (am *Manager) Find(account Account) (Wallet, error) {
 	am.lock.RLock()
 	defer am.lock.RUnlock()
@@ -180,6 +186,8 @@ func (am *Manager) Sujbscribe(sink chan<- WalletEvent) event.Subscription {
 // origin list is preserved by inserting new wallets at the correct position.
 //
 // The original slice is assumed to be already sorted by URL.
+// merge함수는 지갑을 순서대로 추가한다.
+// 기존 덩어리는 이미 url기반으로 정렬되어있다고 가정한다
 func merge(slice []Wallet, wallets ...Wallet) []Wallet {
 	for _, wallet := range wallets {
 		n := sort.Search(len(slice), func(i int) bool { return slice[i].URL().Cmp(wallet.URL()) >= 0 })
@@ -194,6 +202,7 @@ func merge(slice []Wallet, wallets ...Wallet) []Wallet {
 
 // drop is the couterpart of merge, which looks up wallets from within the sorted
 // cache and removes the ones specified.
+// drop함수는 merge의 반대역할로, 주어진 덩어리에서 지갑을 제거한다
 func drop(slice []Wallet, wallets ...Wallet) []Wallet {
 	for _, wallet := range wallets {
 		n := sort.Search(len(slice), func(i int) bool { return slice[i].URL().Cmp(wallet.URL()) >= 0 })

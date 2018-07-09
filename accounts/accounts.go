@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package accounts implements high level Ethereum account management.
+// accounts 패키지는 높은수준의 이더리움 어카운트 관리를 구현한다
 package accounts
 
 import (
@@ -83,9 +84,12 @@ type Wallet interface {
 	// of. For hierarchical deterministic wallets, the list will not be exhaustive,
 	// rather only contain the accounts explicitly pinned during account derivation.
 	// 계정 함수는 현재 고려되는 사이닝 어카운트의 리스트를 반환한다
+	// 계층적으로 결정되는 지갑들을 위해, 반환되는 리스트는 완벽하지 않은, 
+	// 계정유도과정동안 명백해게 고정된 계정만을 포함한다
 	Accounts() []Account
 
 	// Contains returns whether an account is part of this particular wallet or not.
+	// Contains 함수는 계정이 특정지갑에 포함되는지 여부를 반환한다
 	Contains(account Account) bool
 
 	// Derive attempts to explicitly derive a hierarchical deterministic account at
@@ -107,6 +111,10 @@ type Wallet interface {
 	// chain state reader.
 	// SelfDerive 함수는 계정을 찾으려하는 지갑으로 부터 기본 계정 유도주소를 얻어 리스트에 추가하고 관찰한다
 	// 자동 계정 발견을 이함수를 nil인자로 호출함으로서 비활성 시킬수 있다
+	// 자기주도적 유도는 0이 아닌 부분으로 시작하는것 계정을 발견하는것을 허용하기 위해
+	// 자식경로와는 반대로 특정된 경로의 마지막 부분을 증가시킬것이다 
+	// 체인리더에 nil 값을 전달함으로서, 자동 계정발견기능을 중지시킬 수 있다
+
 	SelfDerive(base DerivationPath, chain ethereum.ChainStateReader)
 
 	// SignHash requests the wallet to sign the given hash.
@@ -121,7 +129,12 @@ type Wallet interface {
 	// the needed details via SignHashWithPassphrase, or by other means (e.g. unlock
 	// the account in a keystore).
 	// SignHash함수는 주어진 해시에 사인하도록 지갑에 요청한다.
-	// 지갑은 계정을 검색한다
+	// 이 함수는 선택적으로 포함된 url 필드의 메타데이터를 이용하여, 
+	// 특정된 어드레스에 대한 유일한 계정을 찾는다
+	// 만약 서명요구에 대해 지갑이 추가적인 인증(걔정 해독 암호나 트렌젝션 검증 PIN)을 요구한다면 
+	// 관련 추가 동작에 대한 정보를 포함하는 인증에러 객체가 반환될것이다
+	// 사용자는 반환된 에러를 활용하여 SighnHashWithPassphrase함수나 
+	// 다른 방법(키스토어 파일의 계정 잠금 해제)을 통해 시도 할수 있다
 	SignHash(account Account, hash []byte) ([]byte, error)
 
 	// SignTx requests the wallet to sign the given transaction.
@@ -136,6 +149,12 @@ type Wallet interface {
 	// the needed details via SignTxWithPassphrase, or by other means (e.g. unlock
 	// the account in a keystore).
 	// SignTx 함수는 주어진 트렌젝션의 사인을 지갑에 요구한다
+	// 이 함수는 선택적으로 포함된 url 필드의 메타데이터를 이용하여, 
+	// 특정된 어드레스에 대한 유일한 계정을 찾는다
+	// 만약 서명요구에 대해 지갑이 추가적인 인증(걔정 해독 암호나 트렌젝션 검증 PIN)을 요구한다면 
+	// 관련 추가 동작에 대한 정보를 포함하는 인증에러 객체가 반환될것이다
+	// 사용자는 반환된 에러를 활용하여 SighnHashWithPassphrase함수나 
+	// 다른 방법(키스토어 파일의 계정 잠금 해제)을 통해 시도 할수 있다
 	SignTx(account Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error)
 
 	// SignHashWithPassphrase requests the wallet to sign the given hash with the
@@ -143,6 +162,8 @@ type Wallet interface {
 	//
 	// It looks up the account specified either solely via its address contained within,
 	// or optionally with the aid of any location metadata from the embedded URL field.
+	// SignHashWithPassphrase 함수는 지갑에게 주어진 해시를 
+	// 추가 인증을 위해 주어진 암호정보를 이용하여 서명하도록 한다
 	SignHashWithPassphrase(account Account, passphrase string, hash []byte) ([]byte, error)
 
 	// SignTxWithPassphrase requests the wallet to sign the given transaction, with the
@@ -150,6 +171,7 @@ type Wallet interface {
 	//
 	// It looks up the account specified either solely via its address contained within,
 	// or optionally with the aid of any location metadata from the embedded URL field.
+	// SignTxWithPassphrase함수는 지갑에게 주어진 추가 암호정보를 이용하여 서명하도록 요청한다
 	SignTxWithPassphrase(account Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error)
 }
 
@@ -170,7 +192,8 @@ type Backend interface {
 	// subsequent retrievals.
 	// Wallets 함수는 현재 이 인터페이스가 관리하는 지갑리스트를 반환한다
 	// 반환된 지갑은 기본적으로 닫힌상태이다. 소프트웨어 지갑에서의 이것이 이미하는 것은
-	// 베이스 시드들이 아무것도 해독되지 않은것이고, 하드웨어 지갑들은 실제 연결이 일어나지 않았다는 것이다
+	// 베이스 시드들이 아무것도 해독되지 않은것이고, 
+	// 하드웨어 지갑들은 실제 연결이 일어나지 않았다는 것이다
 	// 반환된 지갑의 리스트는 backend에 의해 지정된 내부 URL의 알파벳순서로 정렬된다.
 
 	Wallets() []Wallet
@@ -199,6 +222,7 @@ const (
 	WalletOpened
 
 	// WalletDropped
+	// 지갑이 분리되었음을 알리는 이벤트
 	WalletDropped
 )
 

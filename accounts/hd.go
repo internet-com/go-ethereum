@@ -27,16 +27,22 @@ import (
 // DefaultRootDerivationPath is the root path to which custom derivation endpoints
 // are appended. As such, the first account will be at m/44'/60'/0'/0, the second
 // at m/44'/60'/0'/1, etc.
+// DefaultRootDerivationPath는 사용자 유도 정점이 부착될 고유기본경로이다
+// 첫번째 계정은 m/44'/60'/0'/0에 있을것이며, 두번째는 m/44'/60'/0'/1에 있을것이다
 var DefaultRootDerivationPath = DerivationPath{0x80000000 + 44, 0x80000000 + 60, 0x80000000 + 0, 0}
 
 // DefaultBaseDerivationPath is the base path from which custom derivation endpoints
 // are incremented. As such, the first account will be at m/44'/60'/0'/0, the second
 // at m/44'/60'/0'/1, etc.
+// DefaultBaseDerivationPath는 사용자 유도 정점이 부착될 기본경로이다
+// 첫번째 계정은 m/44'/60'/0'/0에 있을것이며, 두번째는 m/44'/60'/0'/1에 있을것이다
 var DefaultBaseDerivationPath = DerivationPath{0x80000000 + 44, 0x80000000 + 60, 0x80000000 + 0, 0, 0}
 
 // DefaultLedgerBaseDerivationPath is the base path from which custom derivation endpoints
 // are incremented. As such, the first account will be at m/44'/60'/0'/0, the second
 // at m/44'/60'/0'/1, etc.
+// DefaultLedgerDerivationPath는 사용자 유도 정점이 부착될 기본경로이다
+// 첫번째 계정은 m/44'/60'/0'/0에 있을것이며, 두번째는 m/44'/60'/0'/1에 있을것이다
 var DefaultLedgerBaseDerivationPath = DerivationPath{0x80000000 + 44, 0x80000000 + 60, 0x80000000 + 0, 0}
 
 // DerivationPath represents the computer friendly version of a hierarchical
@@ -56,6 +62,12 @@ var DefaultLedgerBaseDerivationPath = DerivationPath{0x80000000 + 44, 0x80000000
 // from https://github.com/ethereum/EIPs/issues/84, albeit it's not set in stone
 // yet whether accounts should increment the last component or the children of
 // that. We will go with the simpler approach of incrementing the last component.
+// DerivationPath 는 컴퓨터에 친숙한 지갑의 유도경로이다
+// BIP32 스펙에 의해 경로는 다음의 형태가 된다
+//   m / purpose' / coin_type' / account' / change / address_index
+// BIP-44 스펙은 목적 필드를 44로 설정했고 SLIP-44는 이더리움 코인을 위해 타입 60을 할달하였다
+// 이더리움 고유 경로는 m/44'66'/0'/0'은 EIP issue84를 임시적으로 따르며 
+//우리는 마지막 컴포넌트를 증가시키는 단순한 방법을 채택할것이다
 type DerivationPath []uint32
 
 // ParseDerivationPath converts a user specified derivation path string to the
@@ -64,6 +76,9 @@ type DerivationPath []uint32
 // Full derivation paths need to start with the `m/` prefix, relative derivation
 // paths (which will get appended to the default root path) must not have prefixes
 // in front of the first element. Whitespace is ignored.
+// ParseDerivationPath 함수는 사용자 유도 경로 문자열을 내부적 이진 표현으로 변환한다
+// 전체 유도 경로는 m/로 시작해야 하며 상대 경로들(기본 고유경로에 부착될) 접두사를 가지면 안된다. 
+// 공백은 무시된다
 func ParseDerivationPath(path string) (DerivationPath, error) {
 	var result DerivationPath
 
@@ -118,6 +133,7 @@ func ParseDerivationPath(path string) (DerivationPath, error) {
 
 // String implements the stringer interface, converting a binary derivation path
 // to its canonical representation.
+// String 함수는 이진으로 유도된 경로를 고유 경로 표현으로 변환하는 함수이다
 func (path DerivationPath) String() string {
 	result := "m"
 	for _, component := range path {
