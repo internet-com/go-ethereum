@@ -39,9 +39,11 @@ type revision struct {
 
 var (
 	// emptyState is the known hash of an empty state trie entry.
+	// emptyState는 비어있는 상태 트라이 엔트리의 알려진 해시이다
 	emptyState = crypto.Keccak256Hash(nil)
 
 	// emptyCode is the known hash of the empty EVM bytecode.
+	// emptyCode는 비어있는 EVM bytecode의 알려진 해시이다
 	emptyCode = crypto.Keccak256Hash(nil)
 )
 
@@ -66,9 +68,12 @@ type StateDB struct {
 	// unable to deal with database-level errors. Any error that occurs
 	// during a database read is memoized here and will eventually be returned
 	// by StateDB.Commit.
+	// 상태 오브젝트는 db 레벨의 에러를 관리할수 없는 컨센서스 코어와 VM에 의해 사용된다
+	// DB일기에서 발생하는 모든에러는 여기에 저장되고 가끔씩 StateDB.Commit에 의해 반환될것이다
 	dbErr error
 
 	// The refund counter, also used by state transitioning.
+	// 환불카운터 상태전환에서도 사용됨
 	refund uint64
 
 	thash, bhash common.Hash
@@ -109,6 +114,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 }
 
 // setError remembers the first non-nil error it is called with.
+// setError함수는 첫번째 에러를 기억한다
 func (self *StateDB) setError(err error) {
 	if self.dbErr == nil {
 		self.dbErr = err
@@ -121,6 +127,8 @@ func (self *StateDB) Error() error {
 
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
+// Reset 함수는 임시적인 상태 오브젝트를 상태 db로부터 지운다,
+// 그러나 상태 트라이는 다음 오퍼레이션에서의 재읽기를 방지하기 위해 유지한다
 func (self *StateDB) Reset(root common.Hash) error {
 	tr, err := self.db.OpenTrie(root)
 	if err != nil {
@@ -163,6 +171,7 @@ func (self *StateDB) Logs() []*types.Log {
 }
 
 // AddPreimage records a SHA3 preimage seen by the VM.
+// AddPreImage함수는 VM에의해 보여질 SHA3 사전이미지를 기록한다
 func (self *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
 	if _, ok := self.preimages[hash]; !ok {
 		self.journal.append(addPreimageChange{hash: hash})
@@ -173,6 +182,7 @@ func (self *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
 }
 
 // Preimages returns a list of SHA3 preimages that have been submitted.
+// Preimages함수는 서브밋된 SHA3 preimage의 list를 반환한다
 func (self *StateDB) Preimages() map[common.Hash][]byte {
 	return self.preimages
 }
@@ -190,12 +200,16 @@ func (self *StateDB) Exist(addr common.Address) bool {
 
 // Empty returns whether the state object is either non-existent
 // or empty according to the EIP161 specification (balance = nonce = code = 0)
+// Empty함수는 상태오브젝트가 비어있는지 확인한다
+// 잔고 = 논스 = 코드 = 0
 func (self *StateDB) Empty(addr common.Address) bool {
 	so := self.getStateObject(addr)
 	return so == nil || so.empty()
 }
 
 // Retrieve the balance from the given address or 0 if object not found
+// GetBalance함수는 주어진 주소의 잔고를 반환하고, 
+// 오브젝트가 존재하지 않을경우 0을리턴한다
 func (self *StateDB) GetBalance(addr common.Address) *big.Int {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
@@ -253,6 +267,7 @@ func (self *StateDB) GetState(addr common.Address, bhash common.Hash) common.Has
 }
 
 // Database retrieves the low level database supporting the lower level trie ops.
+// Database함수는 저수준의 트라이 동작을 지원하는 저수준 DB를 반환한다
 func (self *StateDB) Database() Database {
 	return self.db
 }
@@ -282,6 +297,7 @@ func (self *StateDB) HasSuicided(addr common.Address) bool {
  */
 
 // AddBalance adds amount to the account associated with addr.
+// AddBalace 함수는 관련된 함수에 주어진 량을 더한다
 func (self *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
@@ -290,6 +306,7 @@ func (self *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 }
 
 // SubBalance subtracts amount from the account associated with addr.
+// SubBalace 함수는 관련된 함수에 주어진 량을 뺀다
 func (self *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
@@ -330,6 +347,10 @@ func (self *StateDB) SetState(addr common.Address, key, value common.Hash) {
 //
 // The account's state object is still available until the state is committed,
 // getStateObject will return a non-nil account after Suicide.
+// Suicide 함수는 주어진 계정이 삭제될것을 마킹한다
+// 이함수는 잔고를 클리어 한다
+// 계정의 상태 오브젝트는 스테이트가 commit 되기 전까진 유효하며
+// GetStateObject함수는 삭제 0이 아닌 값을 반환할것이다
 func (self *StateDB) Suicide(addr common.Address) bool {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil {
@@ -351,6 +372,7 @@ func (self *StateDB) Suicide(addr common.Address) bool {
 //
 
 // updateStateObject writes the given object to the trie.
+// updateStateObject는 주어진 오브젝트를 트라이에 쓴다
 func (self *StateDB) updateStateObject(stateObject *stateObject) {
 	addr := stateObject.Address()
 	data, err := rlp.EncodeToBytes(stateObject)
@@ -361,6 +383,7 @@ func (self *StateDB) updateStateObject(stateObject *stateObject) {
 }
 
 // deleteStateObject removes the given object from the state trie.
+// deteteStateObject함수는 주어진 오브젝트를 상태 트라이로부터 제거한다
 func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 	stateObject.deleted = true
 	addr := stateObject.Address()
@@ -368,6 +391,8 @@ func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 }
 
 // Retrieve a state object given by the address. Returns nil if not found.
+// getStateObject함수는 주어진 어드레스에 의해 상태오브젝트를 반환하고
+// 찾지못할경우 nil을 리턴한다
 func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
 	if obj := self.stateObjects[addr]; obj != nil {
@@ -378,6 +403,7 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 	}
 
 	// Load the object from the database.
+	// object를 db로 부터 읽는다
 	enc, err := self.trie.TryGet(addr[:])
 	if len(enc) == 0 {
 		self.setError(err)
@@ -389,6 +415,7 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 		return nil
 	}
 	// Insert into the live set.
+	// live set에 삽입한다
 	obj := newObject(self, addr, data)
 	self.setStateObject(obj)
 	return obj
@@ -399,6 +426,7 @@ func (self *StateDB) setStateObject(object *stateObject) {
 }
 
 // Retrieve a state object or create a new state object if nil.
+// State object를 반환하거나 nil이라면 새로운 오브젝트를 생성한다
 func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil || stateObject.deleted {
@@ -409,6 +437,8 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 
 // createObject creates a new state object. If there is an existing account with
 // the given address, it is overwritten and returned as the second return value.
+// createObject함수는 새로운 오브젝트를 생성한다. 만약 이미 존재한다면 
+// 덮어쓰고 덮어쓴 것으로 리턴한다
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = self.getStateObject(addr)
 	newobj = newObject(self, addr, Account{})
@@ -451,6 +481,7 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 	}
 
 	// When iterating over the storage check the cache first
+	// 스토리지 트라이를 반복할때는 캐시를 먼저 
 	for h, value := range so.cachedStorage {
 		cb(h, value)
 	}
@@ -458,6 +489,7 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 	it := trie.NewIterator(so.getTrie(db.db).NodeIterator(nil))
 	for it.Next() {
 		// ignore cached values
+		// 캐시값을 무시한다
 		key := common.BytesToHash(db.trie.GetKey(it.Key))
 		if _, ok := so.cachedStorage[key]; !ok {
 			cb(key, common.BytesToHash(it.Value))
@@ -467,6 +499,8 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 
 // Copy creates a deep, independent copy of the state.
 // Snapshots of the copied state cannot be applied to the copy.
+// Copy함수는 깊고 독립적인 상태의 복사본을 생성한다
+// 복사된 상태의 스냅샷은 복사에 적용될수 없다
 func (self *StateDB) Copy() *StateDB {
 	self.lock.Lock()
 	defer self.lock.Unlock()
@@ -484,11 +518,15 @@ func (self *StateDB) Copy() *StateDB {
 		journal:           newJournal(),
 	}
 	// Copy the dirty states, logs, and preimages
+	// 기본 필드를 복사하고 메모리를 초기화한다
+	// dirty 상태와 로그 사전이미지를 복사한다
 	for addr := range self.journal.dirties {
 		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
 		// and in the Finalise-method, there is a case where an object is in the journal but not
 		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
 		// nil
+		// 문서와 최종화 방법에 따라 저널에 있는 오브젝트가 아직 상태오브젝트에 없는 경우가 있다. 
+		// 그러므로 nil체크를 해야한다
 		if object, exist := self.stateObjects[addr]; exist {
 			state.stateObjects[addr] = object.deepCopy(state)
 			state.stateObjectsDirty[addr] = struct{}{}
@@ -497,6 +535,9 @@ func (self *StateDB) Copy() *StateDB {
 	// Above, we don't copy the actual journal. This means that if the copy is copied, the
 	// loop above will be a no-op, since the copy's journal is empty.
 	// Thus, here we iterate over stateObjects, to enable copies of copies
+	// 윗쪽에서 우리는 실제로 저널을 복사하지 않았다.
+	// 만약 복사가 복사되면 윗쪽 루프는 아무것도 않을것이다 저널이 비어있기 때문에.
+	// 그러므로 여기서 복사의 복사를 가능케 하기 위해 반복한다
 	for addr := range self.stateObjectsDirty {
 		if _, exist := state.stateObjects[addr]; !exist {
 			state.stateObjects[addr] = self.stateObjects[addr].deepCopy(state)
@@ -515,6 +556,7 @@ func (self *StateDB) Copy() *StateDB {
 }
 
 // Snapshot returns an identifier for the current revision of the state.
+// Snapshot함수는 현재 버전의 상태를 위한 지시자를 반환한다
 func (self *StateDB) Snapshot() int {
 	id := self.nextRevisionId
 	self.nextRevisionId++
@@ -536,11 +578,13 @@ func (self *StateDB) RevertToSnapshot(revid int) {
 	snapshot := self.validRevisions[idx].journalIndex
 
 	// Replay the journal to undo changes and remove invalidated snapshots
+	// 변화를 원상복구하고 무효화된 스냅샷을 제거하기위해 저널을 재기동한다
 	self.journal.revert(self, snapshot)
 	self.validRevisions = self.validRevisions[:idx]
 }
 
 // GetRefund returns the current value of the refund counter.
+// GetRefund함수는 환불 카운터의 현재값을 반환한다
 func (self *StateDB) GetRefund() uint64 {
 	return self.refund
 }
@@ -571,6 +615,7 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Invalidate journal because reverting across transactions is not allowed.
+	// 트렌젝션간 원상복구가 허용되지 않기 때문에 저널을 무효화한다
 	s.clearJournalAndRefund()
 }
 
@@ -586,6 +631,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 
 // Prepare sets the current transaction hash and index and block hash which is
 // used when the EVM emits new state logs.
+// Prepare함수는 현재 트렌젝션해시와 인덱스와 Evm이 새로운 상태를 위해 임시적으로 사용할 블록해시를 준비한다
 func (self *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 	self.thash = thash
 	self.bhash = bhash
@@ -607,29 +653,35 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Commit objects to the trie.
+	// 오브젝트를 트라이에 쓴다
 	for addr, stateObject := range s.stateObjects {
 		_, isDirty := s.stateObjectsDirty[addr]
 		switch {
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
+			// 만약 오브젝트가 삭제되었다면 싱크를 방해해지말고 삭제를 위해 마킹한다
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object
+			// 상태오브젝트와 관련된 모든 계약 코드를 쓴다
 			if stateObject.code != nil && stateObject.dirtyCode {
 				s.db.TrieDB().Insert(common.BytesToHash(stateObject.CodeHash()), stateObject.code)
 				stateObject.dirtyCode = false
 			}
 			// Write any storage changes in the state object to its storage trie.
+			// 상태 오브젝트의 저장소 트라이를 쓴다
 			if err := stateObject.CommitTrie(s.db); err != nil {
 				return common.Hash{}, err
 			}
 			// Update the object in the main account trie.
+			// 메인 계정 트라이의 오브젝트를 업데이트 한다
 			s.updateStateObject(stateObject)
 		}
 		delete(s.stateObjectsDirty, addr)
 	}
 	// Write trie changes.
+	// 트라이의 변경사항을 쓴다
 	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {

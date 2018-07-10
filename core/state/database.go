@@ -27,14 +27,18 @@ import (
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.
+// 메모리상의 트라이 노드들을 퇴거시키기 위한 캐시 생성 한도
 var MaxTrieCacheGen = uint16(120)
 
 const (
 	// Number of past tries to keep. This value is chosen such that
 	// reasonable chain reorg depths will hit an existing trie.
+	// 보유할 과거 트라이의 숫자. 이 값은 존재중인 트라이의 
+	// 재구성을 발생시킬만한 값으로 선택되었음
 	maxPastTries = 12
 
 	// Number of codehash->size associations to keep.
+	// 보유할 코드해시->크기 연결 쌍의 수
 	codeSizeCacheSize = 100000
 )
 

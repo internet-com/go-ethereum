@@ -37,6 +37,7 @@ type ManagedState struct {
 }
 
 // ManagedState returns a new managed state with the statedb as it's backing layer
+// ManagedState 함수는 지원하는 레이어로서 DB를 사용해서 새로운 관리 상태를 반환한다
 func ManageState(statedb *StateDB) *ManagedState {
 	return &ManagedState{
 		StateDB:  statedb.Copy(),
@@ -45,6 +46,7 @@ func ManageState(statedb *StateDB) *ManagedState {
 }
 
 // SetState sets the backing layer of the managed state
+// SetState 함수는 관리된 상태의 지원 레이어를 설정한다
 func (ms *ManagedState) SetState(statedb *StateDB) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -52,6 +54,7 @@ func (ms *ManagedState) SetState(statedb *StateDB) {
 }
 
 // RemoveNonce removed the nonce from the managed state and all future pending nonces
+// RemoveNonce함수는 관리된 상태에서 논스 및 대기중인 퓨처 논스들을 제거한다 
 func (ms *ManagedState) RemoveNonce(addr common.Address, n uint64) {
 	if ms.hasAccount(addr) {
 		ms.mu.Lock()
@@ -67,6 +70,7 @@ func (ms *ManagedState) RemoveNonce(addr common.Address, n uint64) {
 }
 
 // NewNonce returns the new canonical nonce for the managed account
+// NewNonce함수는 관리되는 계정을 위한 캐노니컬 논스를 반환한다
 func (ms *ManagedState) NewNonce(addr common.Address) uint64 {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -85,6 +89,8 @@ func (ms *ManagedState) NewNonce(addr common.Address) uint64 {
 // GetNonce returns the canonical nonce for the managed or unmanaged account.
 //
 // Because GetNonce mutates the DB, we must take a write lock.
+// GetNonce 함수는 관리되거나/되지않은 계정에 대핸 캐노니컬 논스를 반환한다
+// GetNonce는 DB에 접근해야하기 때문에, lock이 필요하다
 func (ms *ManagedState) GetNonce(addr common.Address) uint64 {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -98,6 +104,7 @@ func (ms *ManagedState) GetNonce(addr common.Address) uint64 {
 }
 
 // SetNonce sets the new canonical nonce for the managed state
+// Setnonce 함수는 관리된 상태에 대해 캐노니컬 논스를 설정한다
 func (ms *ManagedState) SetNonce(addr common.Address, nonce uint64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -109,6 +116,7 @@ func (ms *ManagedState) SetNonce(addr common.Address, nonce uint64) {
 }
 
 // HasAccount returns whether the given address is managed or not
+// 주어진 어드래스가 관리되는지 아닌지 여부를 반환한다
 func (ms *ManagedState) HasAccount(addr common.Address) bool {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -121,6 +129,7 @@ func (ms *ManagedState) hasAccount(addr common.Address) bool {
 }
 
 // populate the managed state
+// 관리될 상태를 생성한다
 func (ms *ManagedState) getAccount(addr common.Address) *account {
 	if account, ok := ms.accounts[addr]; !ok {
 		so := ms.GetOrNewStateObject(addr)
@@ -128,6 +137,7 @@ func (ms *ManagedState) getAccount(addr common.Address) *account {
 	} else {
 		// Always make sure the state account nonce isn't actually higher
 		// than the tracked one.
+		// 상태 계정 논스는 추적 대상보다 높을수 없다는 것을 확정함
 		so := ms.StateDB.getStateObject(addr)
 		if so != nil && uint64(len(account.nonces))+account.nstart < so.Nonce() {
 			ms.accounts[addr] = newAccount(so)

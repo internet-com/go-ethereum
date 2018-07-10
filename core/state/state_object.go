@@ -60,10 +60,10 @@ func (self Storage) Copy() Storage {
 // First you need to obtain a state object.
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
-// 스테이트 오브젝트 는수정 될이더리움 계정 을 표현한다
+// 스테이트 오브젝트는 수정될 이더리움 계정을 표현한다
 // 사용패턴은 다음과 같다
 // 이 오브젝트를 통해서 계정의 값에 접근가능하다
-// 최종적으로 commitTiie를 호출하여 수정된 storage trie를 데이터베이스에 쓴다 
+// 최종적으로 commitTrie를 호출하여 수정된 storage trie를 데이터베이스에 쓴다 
 type stateObject struct {
 	address  common.Address
 	addrHash common.Hash // hash of ethereum address of the account
@@ -75,24 +75,34 @@ type stateObject struct {
 	// unable to deal with database-level errors. Any error that occurs
 	// during a database read is memoized here and will eventually be returned
 	// by StateDB.Commit.
+	// DB error
+	// 상태 오브젝트는 db 레벨의 에러를 관리할수 없는 컨센서스 코어와 VM에 의해 사용된다
+	// DB일기에서 발생하는 모든에러는 여기에 저장되고 가끔씩 StateDB.Commit에 의해 반환될것이다
 	dbErr error
 
 	// Write caches.
 	trie Trie // storage trie, which becomes non-nil on first access
+	// 저장소 트라이
 	code Code // contract bytecode, which gets set when code is loaded
+	// 계약 코드
 
 	cachedStorage Storage // Storage entry cache to avoid duplicate reads
+	// 중복 읽기를 회피하기 위한 스토리지 엔트리
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
+	// 디스크로 플러시가 필요한 스토리지 엔트리들
 
 	// Cache flags.
 	// When an object is marked suicided it will be delete from the trie
 	// during the "update" phase of the state transition.
+	// 캐시 플래그
+	// 만약 오브젝트가 suicided로 마킹되면 상태 전환의 update 단계에서 트라이로부터 삭제될것이다
 	dirtyCode bool // true if the code was updated
 	suicided  bool
 	deleted   bool
 }
 
 // empty returns whether the account is considered empty.
+// empty함수는 계정이 비어있는지 여부를 반환한다
 func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
@@ -109,6 +119,7 @@ type Account struct {
 }
 
 // newObject creates a state object.
+// newObject함수는 상태 오브젝트를 생성한다
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
@@ -127,11 +138,13 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 }
 
 // EncodeRLP implements rlp.Encoder.
+// EncodeRLP함수는 rlp.Encoder를 구현한다
 func (c *stateObject) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, c.data)
 }
 
 // setError remembers the first non-nil error it is called with.
+// setError함수는 처음 발생한 에러를 기억한다
 func (self *stateObject) setError(err error) {
 	if self.dbErr == nil {
 		self.dbErr = err
@@ -149,6 +162,7 @@ func (c *stateObject) touch() {
 	if c.address == ripemd {
 		// Explicitly put it in the dirty-cache, which is otherwise generated from
 		// flattened journals.
+		// 명백하게 더티캐시에 넣는다
 		c.db.journal.dirty(c.address)
 	}
 }
@@ -166,12 +180,14 @@ func (c *stateObject) getTrie(db Database) Trie {
 }
 
 // GetState returns a value in account storage.
+// GetState함수는 계정 저장소에 값을 반환한다
 func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	value, exists := self.cachedStorage[key]
 	if exists {
 		return value
 	}
 	// Load from DB in case it is missing.
+	// 없을 경우 DB로부터 로딩한다
 	enc, err := self.getTrie(db).TryGet(key[:])
 	if err != nil {
 		self.setError(err)
@@ -189,6 +205,7 @@ func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 }
 
 // SetState updates a value in account storage.
+// SetState함수는 계성 저장소의 값을 갱신한다
 func (self *stateObject) SetState(db Database, key, value common.Hash) {
 	self.db.journal.append(storageChange{
 		account:  &self.address,
@@ -221,6 +238,7 @@ func (self *stateObject) updateTrie(db Database) Trie {
 }
 
 // UpdateRoot sets the trie root to the current root hash of
+// UpdateRoot 함수는 UpdateRoot의 현재루트 해시에 트라이 루트를 설정한다
 func (self *stateObject) updateRoot(db Database) {
 	self.updateTrie(db)
 	self.data.Root = self.trie.Hash()
@@ -228,6 +246,8 @@ func (self *stateObject) updateRoot(db Database) {
 
 // CommitTrie the storage trie of the object to dwb.
 // This updates the trie root.
+// CommitTrie 함수는 오브젝트의 저장소트라이를DB에 쓴다
+// 이함수는 trie root를 업데이트 한다
 func (self *stateObject) CommitTrie(db Database) error {
 	self.updateTrie(db)
 	if self.dbErr != nil {
@@ -242,6 +262,8 @@ func (self *stateObject) CommitTrie(db Database) error {
 
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
+// AddBalance 함수는 object의 잔고로부터 수량을 제거한다.(?)
+// 이 함수는 금액을 목적 계정에게 보낼때 사용된다
 func (c *stateObject) AddBalance(amount *big.Int) {
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
@@ -257,6 +279,7 @@ func (c *stateObject) AddBalance(amount *big.Int) {
 
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
+// SubBalance 함수는 object의 잔고로부터 수량을 제거한다.
 func (c *stateObject) SubBalance(amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
@@ -277,6 +300,7 @@ func (self *stateObject) setBalance(amount *big.Int) {
 }
 
 // Return the gas back to the origin. Used by the Virtual machine or Closures
+// 가스를 원래에게 돌려준다. VM이나 퍠쇄에의해 사용된다
 func (c *stateObject) ReturnGas(gas *big.Int) {}
 
 func (self *stateObject) deepCopy(db *StateDB) *stateObject {
@@ -298,11 +322,13 @@ func (self *stateObject) deepCopy(db *StateDB) *stateObject {
 //
 
 // Returns the address of the contract/account
+// 계약이나 계정의 주소를 반환한다
 func (c *stateObject) Address() common.Address {
 	return c.address
 }
 
 // Code returns the contract code associated with this object, if any.
+// Code함수는 오브젝트와 관련된 계약코드를 반환한다
 func (self *stateObject) Code(db Database) []byte {
 	if self.code != nil {
 		return self.code
@@ -361,6 +387,8 @@ func (self *stateObject) Nonce() uint64 {
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
 // interface. Interfaces are awesome.
+// 호출되어서는 안되나, vm.ContractRef인터페이스 조건을 만족시켜 
+// vm의 계정으로서 stateObject가 사용되도록 한다
 func (self *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
 }
