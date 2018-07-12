@@ -33,12 +33,14 @@ var (
 
 // sigCache is used to cache the derived sender and contains
 // the signer used to derive it.
+// sigCache 구조체는 유도된 전송자를 캐시에 저장하고, 유도에 사용된 서명자를 포함한다
 type sigCache struct {
 	signer Signer
 	from   common.Address
 }
 
 // MakeSigner returns a Signer based on the given chain config and block number.
+// MakeSighner함수는 주어진 블록 넘버와 체인 설정을 기반으로 서명자를 반환한다
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
 	var signer Signer
 	switch {
@@ -53,6 +55,7 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
 }
 
 // SignTx signs the transaction using the given signer and private key
+// SignTx 함수는 주어진 서명자와 개인키를 이용하여 트렌젝션에 서명한다
 func SignTx(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, error) {
 	h := s.Hash(tx)
 	sig, err := crypto.Sign(h[:], prv)
@@ -69,6 +72,10 @@ func SignTx(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, err
 // Sender may cache the address, allowing it to be used regardless of
 // signing method. The cache is invalidated if the cached signer does
 // not match the signer used in the current call.
+// Sender함수는 secp256k1 eliptic curve를 이용하는 서명으로 부터 주소를 유도하고
+// 서명이 맞지 않거나 유도에 실패할 경우 에러를 반환한다
+// 전송자는 서명자에 관계없이 사용되기 위해 주소를 캐싱한다. 
+// 만약 캐시 서명자가 현재 호출에 대한 서명자와 다르다면 캐시는 무효화 된다
 func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 	if sc := tx.from.Load(); sc != nil {
 		sigCache := sc.(sigCache)
@@ -90,19 +97,26 @@ func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 
 // Signer encapsulates transaction signature handling. Note that this interface is not a
 // stable API and may change at any time to accommodate new protocol rules.
+// Signer는 트렌젝션 서명동작을 캡슐화한다. 
+// 이 인터페이스는 안정화된 api가 아니며, 새로운 프로토콜에 따라 수정될수 있다
 type Signer interface {
 	// Sender returns the sender address of the transaction.
+	// Sender함수는 트렌젝션의 전송자를 반환한다
 	Sender(tx *Transaction) (common.Address, error)
 	// SignatureValues returns the raw R, S, V values corresponding to the
 	// given signature.
+	// SignatureValues함수는 주어진 서명에 대한 R,S,V 값을 반환한다
 	SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error)
 	// Hash returns the hash to be signed.
+	// Hash함수는 서명될 해시를 반환한다
 	Hash(tx *Transaction) common.Hash
 	// Equal returns true if the given signer is the same as the receiver.
+	// Equal함수는 주어진 서명자가 수신자와 같을 경우 true를 반환한다
 	Equal(Signer) bool
 }
 
 // EIP155Transaction implements Signer using the EIP155 rules.
+// EIP155STransaciton은 EIP155룰을 사용하는 서명자를 구현한다
 type EIP155Signer struct {
 	chainId, chainIdMul *big.Int
 }
@@ -138,6 +152,8 @@ func (s EIP155Signer) Sender(tx *Transaction) (common.Address, error) {
 
 // WithSignature returns a new transaction with the given signature. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
+// WithSignature 함수는 주어진 서명으로 새로운 트렌젝션을 반환한다.
+// 이 서명은 R, S, V 형태로 존재해야 한다
 func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
 	R, S, V, err = HomesteadSigner{}.SignatureValues(tx, sig)
 	if err != nil {
@@ -152,6 +168,8 @@ func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
+// Hash 함수는 전송자에 의해 서명될 해시를 반환한다
+// 이것은 트렌젝션을 단독으로 정의하지 않는다
 func (s EIP155Signer) Hash(tx *Transaction) common.Hash {
 	return rlpHash([]interface{}{
 		tx.data.AccountNonce,
@@ -166,6 +184,7 @@ func (s EIP155Signer) Hash(tx *Transaction) common.Hash {
 
 // HomesteadTransaction implements TransactionInterface using the
 // homestead rules.
+// HomesteadTransaciton은 홈스테드 룰에 따르는 트렌젝션 인터페이스를 구현한다
 type HomesteadSigner struct{ FrontierSigner }
 
 func (s HomesteadSigner) Equal(s2 Signer) bool {
@@ -175,6 +194,8 @@ func (s HomesteadSigner) Equal(s2 Signer) bool {
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
+// SignatureValues 함수는 서명의 값을 반롼한다
+// 이 서명은 R, S, V 형태로 존재해야 한다
 func (hs HomesteadSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
 	return hs.FrontierSigner.SignatureValues(tx, sig)
 }
@@ -192,6 +213,8 @@ func (s FrontierSigner) Equal(s2 Signer) bool {
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
+// SignatureValues 함수는 서명의 값을 반롼한다
+// 이 서명은 R, S, V 형태로 존재해야 한다
 func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != 65 {
 		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
@@ -204,6 +227,8 @@ func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
+// Hash 함수는 전송자에 의해 서명될 해시를 반환한다
+// 이것은 트렌젝션을 단독으로 정의하지 않는다
 func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
 	return rlpHash([]interface{}{
 		tx.data.AccountNonce,
@@ -228,12 +253,14 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (commo
 		return common.Address{}, ErrInvalidSig
 	}
 	// encode the snature in uncompressed format
+	// 서명을 압축되지 않은 형태로 인코딩한다
 	r, s := R.Bytes(), S.Bytes()
 	sig := make([]byte, 65)
 	copy(sig[32-len(r):32], r)
 	copy(sig[64-len(s):64], s)
 	sig[64] = V
 	// recover the public key from the snature
+	// 서명으로부터 공개키를 복원한다
 	pub, err := crypto.Ecrecover(sighash[:], sig)
 	if err != nil {
 		return common.Address{}, err
@@ -247,6 +274,7 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (commo
 }
 
 // deriveChainId derives the chain id from the given v parameter
+// derivechainID함수는 주어진 v 파라미터로부터 체인아이드를 유도한다
 func deriveChainId(v *big.Int) *big.Int {
 	if v.BitLen() <= 64 {
 		v := v.Uint64()

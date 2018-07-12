@@ -30,17 +30,22 @@ type bytesBacked interface {
 
 const (
 	// BloomByteLength represents the number of bytes used in a header log bloom.
+	// BloomByteLengh는 헤더의 로그 블룸이 사용하는 바이트를 나타낸다
 	BloomByteLength = 256
 
 	// BloomBitLength represents the number of bits used in a header log bloom.
+	// BloomBitLengh는 헤더의 로그 블룸이 사용하는 비트를 나타낸다
 	BloomBitLength = 8 * BloomByteLength
 )
 
 // Bloom represents a 2048 bit bloom filter.
+// Bloom은 2048 비트의 블룸필터를 나타낸다
 type Bloom [BloomByteLength]byte
 
 // BytesToBloom converts a byte slice to a bloom filter.
 // It panics if b is not of suitable size.
+// ByteToBloom 함수는 바이트들을 블룸 필터로 변환한다
+// 바이트가 적당한 사이즈가 아니라면 패닉을 유발한다
 func BytesToBloom(b []byte) Bloom {
 	var bloom Bloom
 	bloom.SetBytes(b)
@@ -49,6 +54,8 @@ func BytesToBloom(b []byte) Bloom {
 
 // SetBytes sets the content of b to the given bytes.
 // It panics if d is not of suitable size.
+// SetBytes 함수는 주어진 바이트로 블룸의 내용을 설정한다
+// 바이트가 적당한 사이즈가 아니라면 패닉을 유발한다
 func (b *Bloom) SetBytes(d []byte) {
 	if len(b) < len(d) {
 		panic(fmt.Sprintf("bloom bytes too big %d %d", len(b), len(d)))
@@ -57,6 +64,7 @@ func (b *Bloom) SetBytes(d []byte) {
 }
 
 // Add adds d to the filter. Future calls of Test(d) will return true.
+// Add함수는 input을 필터에 추가한다. 이후의 Test호출들은 참을 반환할것이다
 func (b *Bloom) Add(d *big.Int) {
 	bin := new(big.Int).SetBytes(b[:])
 	bin.Or(bin, bloom9(d.Bytes()))
@@ -64,6 +72,7 @@ func (b *Bloom) Add(d *big.Int) {
 }
 
 // Big converts b to a big integer.
+// Big함수는 블룸을 빅 인티져로 변환한다
 func (b Bloom) Big() *big.Int {
 	return new(big.Int).SetBytes(b[:])
 }
@@ -82,11 +91,13 @@ func (b Bloom) TestBytes(test []byte) bool {
 }
 
 // MarshalText encodes b as a hex string with 0x prefix.
+// MarshalText함수는 bloom를 0x접두사가 붙은 헥사 스트링으로 변환한다
 func (b Bloom) MarshalText() ([]byte, error) {
 	return hexutil.Bytes(b[:]).MarshalText()
 }
 
 // UnmarshalText b as a hex string with 0x prefix.
+// 0x 접미사를 가진 핵사로서 문자열을 unmarshal 한다
 func (b *Bloom) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("Bloom", input, b[:])
 }

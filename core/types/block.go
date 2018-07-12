@@ -53,16 +53,19 @@ func EncodeNonce(i uint64) BlockNonce {
 }
 
 // Uint64 returns the integer value of a block nonce.
+// Uint64함수는 블록논스의 정수값을 반환한다
 func (n BlockNonce) Uint64() uint64 {
 	return binary.BigEndian.Uint64(n[:])
 }
 
 // MarshalText encodes n as a hex string with 0x prefix.
+// MarshalText함수는 blocknonce를 0x접두사가 붙은 헥사 스트링으로 변환한다
 func (n BlockNonce) MarshalText() ([]byte, error) {
 	return hexutil.Bytes(n[:]).MarshalText()
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
+// UnmarshalText함수는 encoding.TextUnmarshaler의 구현이다
 func (n *BlockNonce) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("BlockNonce", input, n[:])
 }
@@ -129,6 +132,8 @@ func (h *Header) HashNoNonce() common.Hash {
 
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
+// Size함수는 내부 컨텐츠에 사용될 예상 메모리를 반환한다
+// 이함수는 다양한 캐시의 메모리 사용량을 예상하고, 제약하기 위해 사용된다
 func (h *Header) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h)) + common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen()+h.Number.BitLen()+h.Time.BitLen())/8)
 }
@@ -156,15 +161,18 @@ type Block struct {
 	transactions Transactions
 
 	// caches
+	// 캐시들
 	hash atomic.Value
 	size atomic.Value
 
 	// Td is used by package core to store the total difficulty
 	// of the chain up to and including the block.
+	// Td는 블록을 포함한 전체 체인의 난이도를 저장하기 위해 코어 패키지에  의해 사용된다
 	td *big.Int
 
 	// These fields are used by package eth to track
 	// inter-peer block relay.
+	// 이필드들은 eth패키지가 피어간 블록의 연결을 트랙킹하기 위해 사용된다
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
 }
@@ -172,6 +180,8 @@ type Block struct {
 // DeprecatedTd is an old relic for extracting the TD of a block. It is in the
 // code solely to facilitate upgrading the database from the old format to the
 // new, after which it should be deleted. Do not use!
+// DeprecatedTd는 블록의 총 난이도를 풀기위한 오래된 함수이다
+// DB업그레이드시 오래된 format을 새 포 멧으로 변경할때 사용되었다.
 func (b *Block) DeprecatedTd() *big.Int {
 	return b.td
 }
@@ -180,9 +190,13 @@ func (b *Block) DeprecatedTd() *big.Int {
 // StorageBlock defines the RLP encoding of a Block stored in the
 // state database. The StorageBlock encoding contains fields that
 // would otherwise need to be recomputed.
+// eth/63에서 제거됨
+// StroageBlock은 상태 DB에 저장된 블록의 RLP인코딩을 정의한다
+// 블록의 인코딩은 또다른 방법으로 재 계산되야할 필드를 포함한다
 type StorageBlock Block
 
 // "external" block encoding. used for eth protocol, etc.
+// 이더리움 프로토콜에서 사용되는 외부 블록인코딩
 type extblock struct {
 	Header *Header
 	Txs    []*Transaction
@@ -190,7 +204,9 @@ type extblock struct {
 }
 
 // [deprecated by eth/63]
+// eth/63에서 제거됨
 // "storage" block encoding. used for database.
+// db에 사용될 저장 블록 인코딩
 type storageblock struct {
 	Header *Header
 	Txs    []*Transaction
@@ -209,7 +225,6 @@ type storageblock struct {
 // 헤더와 필드데이터의 변화는 블록에 반영되지 않는다
 // 헤더의 TxHash와 엉클해시, 영수증해시와 블룸의 값은 무시되며
 // 주어진 트렌젝션과 엉클과 영수증에 의해 유도된 값이 저장된다
-
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
@@ -245,12 +260,17 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
+// NewBlockWithHeader 함수는 주어진 헤더데이터로 블록을 생성한다
+// 헤더의 TxHash와 엉클해시, 영수증해시와 블룸의 값은 무시되며
+// 주어진 트렌젝션과 엉클과 영수증에 의해 유도된 값이 저장된다
 func NewBlockWithHeader(header *Header) *Block {
 	return &Block{header: CopyHeader(header)}
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
+// CopyHeader함수는 헤더 값을 변경하면서 발생하는 부수효과를 방지하기 위해
+// 블록헤더의 복사본을 생성한다
 func CopyHeader(h *Header) *Header {
 	cpy := *h
 	if cpy.Time = new(big.Int); h.Time != nil {
@@ -270,6 +290,7 @@ func CopyHeader(h *Header) *Header {
 }
 
 // DecodeRLP decodes the Ethereum
+// DecodeRLP함수는 이더리움 압축을 푼다
 func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	var eb extblock
 	_, size, _ := s.Kind()
@@ -282,6 +303,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 }
 
 // EncodeRLP serializes b into the Ethereum RLP block format.
+// EncodeRLP함수는 블록을 이더리움 RLP 블록 포멧으로 직렬화 한다
 func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
 		Header: b.header,
@@ -291,6 +313,7 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 }
 
 // [deprecated by eth/63]
+// eth/63에서 제거됨
 func (b *StorageBlock) DecodeRLP(s *rlp.Stream) error {
 	var sb storageblock
 	if err := s.Decode(&sb); err != nil {
@@ -335,6 +358,7 @@ func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Ext
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 
 // Body returns the non-header content of the block.
+// Body함수는 블록의 헤더가 아닌 내용을 반환한다
 func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles} }
 
 func (b *Block) HashNoNonce() common.Hash {
@@ -343,6 +367,8 @@ func (b *Block) HashNoNonce() common.Hash {
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
+// Size함수는 블록의 RLP 인코딩된 실제 저장 사이즈를 
+// 인코딩이나 반환을 통해 돌려주거나 이전 캐시에서 돌려준다
 func (b *Block) Size() common.StorageSize {
 	if size := b.size.Load(); size != nil {
 		return size.(common.StorageSize)
@@ -366,7 +392,7 @@ func CalcUncleHash(uncles []*Header) common.Hash {
 
 // WithSeal returns a new block with the data from b but the header replaced with
 // the sealed one.
-// 이 함수는 데이터는 그대로 두고, 헤더만 봉인된 헤더로 교체하여 블록을 리턴한다 
+// 이 함수는 데이터는 그대로 두고, 헤더만 인장이 붙은 헤더로 교체하여 블록을 리턴한다 
 func (b *Block) WithSeal(header *Header) *Block {
 	cpy := *header
 
@@ -378,6 +404,7 @@ func (b *Block) WithSeal(header *Header) *Block {
 }
 
 // WithBody returns a new block with the given transaction and uncle contents.
+// WithBody 함수는 주어진 트렌젝션과 엉클을 가지고 새로운 블록을 반환한다
 func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 	block := &Block{
 		header:       CopyHeader(b.header),
@@ -393,6 +420,8 @@ func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
+// hash함수는 블록헤더의 keccak256 해시를 반환한다.
+// 해시는 처음호출에서 계산되고 이후부터는 캐시된 값을 사용한다
 func (b *Block) Hash() common.Hash {
 	if hash := b.hash.Load(); hash != nil {
 		return hash.(common.Hash)

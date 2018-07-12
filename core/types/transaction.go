@@ -36,6 +36,7 @@ var (
 )
 
 // deriveSigner makes a *best* guess about which signer to use.
+// deriveSighner함수는 어떤 사이너를 사용할지 가장 좋은 선택을 한다
 func deriveSigner(V *big.Int) Signer {
 	if V.Sign() != 0 && isProtectedV(V) {
 		return NewEIP155Signer(deriveChainId(V))
@@ -61,11 +62,13 @@ type txdata struct {
 	Payload      []byte          `json:"input"    gencodec:"required"`
 
 	// Signature values
+	// sign값들
 	V *big.Int `json:"v" gencodec:"required"`
 	R *big.Int `json:"r" gencodec:"required"`
 	S *big.Int `json:"s" gencodec:"required"`
 
 	// This is only used when marshaling to JSON.
+	// 이 필드는 json으로 마샬링할때만 사용된다
 	Hash *common.Hash `json:"hash" rlp:"-"`
 }
 
@@ -114,11 +117,13 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 }
 
 // ChainId returns which chain id this transaction was signed for (if at all)
+// ChainId함수는 트렌젝션이 서명된 체인의 아이디를 반환한다
 func (tx *Transaction) ChainId() *big.Int {
 	return deriveChainId(tx.data.V)
 }
 
 // Protected returns whether the transaction is protected from replay protection.
+// Protected 함수는 트렌젝션이 리플레이 어택으로부터 보호되었는지 확인한다
 func (tx *Transaction) Protected() bool {
 	return isProtectedV(tx.data.V)
 }
@@ -129,6 +134,7 @@ func isProtectedV(V *big.Int) bool {
 		return v != 27 && v != 28
 	}
 	// anything not 27 or 28 are considered unprotected
+	// 27 이나 28이 아니라면 보호되지 않은것으로 간주한다
 	return true
 }
 
@@ -149,6 +155,7 @@ func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
 }
 
 // MarshalJSON encodes the web3 RPC transaction format.
+// MarshalJson함수는 web3 RPC transaction 포멧을 인코딩한다
 func (tx *Transaction) MarshalJSON() ([]byte, error) {
 	hash := tx.Hash()
 	data := tx.data
@@ -157,6 +164,7 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON decodes the web3 RPC transaction format.
+// UnmarshalJson함수는 web3 RPC transaction 포멧을 디코딩한다
 func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	var dec txdata
 	if err := dec.UnmarshalJSON(input); err != nil {
@@ -185,6 +193,8 @@ func (tx *Transaction) CheckNonce() bool   { return true }
 
 // To returns the recipient address of the transaction.
 // It returns nil if the transaction is a contract creation.
+// 트렌젠션의 수신 주소를 반환하기 위해서
+// 이 함수는 트렌젠션이 계약의 생성일 경우 nil을 리턴한다
 func (tx *Transaction) To() *common.Address {
 	if tx.data.Recipient == nil {
 		return nil
@@ -195,6 +205,8 @@ func (tx *Transaction) To() *common.Address {
 
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
+// Hash함수는 트렌젝션의 RLP인코딩을 해시한다
+// 이것은 트렌젝션을 유일하게 구분한다
 func (tx *Transaction) Hash() common.Hash {
 	if hash := tx.hash.Load(); hash != nil {
 		return hash.(common.Hash)
@@ -206,6 +218,8 @@ func (tx *Transaction) Hash() common.Hash {
 
 // Size returns the true RLP encoded storage size of the transaction, either by
 // encoding and returning it, or returning a previsouly cached value.
+// Size함수는 블록의 RLP 인코딩된 실제 저장 사이즈를 
+// 인코딩이나 반환을 통해 돌려주거나 이전 캐시에서 돌려준다
 func (tx *Transaction) Size() common.StorageSize {
 	if size := tx.size.Load(); size != nil {
 		return size.(common.StorageSize)
@@ -221,6 +235,8 @@ func (tx *Transaction) Size() common.StorageSize {
 // AsMessage requires a signer to derive the sender.
 //
 // XXX Rename message to something less arbitrary?
+// Size함수는 블록의 RLP 인코딩된 실제 저장 사이즈를 
+// 인코딩이나 반환을 통해 돌려주거나 이전 캐시에서 돌려준다
 func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 	msg := Message{
 		nonce:      tx.data.AccountNonce,
@@ -239,6 +255,8 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 
 // WithSignature returns a new transaction with the given signature.
 // This signature needs to be formatted as described in the yellow paper (v+27).
+// WithSignature 함수는 주어진 서명과 함깨 새 트렌젝션을 반환한다
+// 이 서명은 황서에 표현된 대로 형태를 가져야 한다 (v+27)
 func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
 	r, s, v, err := signer.SignatureValues(tx, sig)
 	if err != nil {
@@ -250,6 +268,7 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 }
 
 // Cost returns amount + gasprice * gaslimit.
+// Cost함수는 amount + gasprice * gaslimit의 값을 반환한다
 func (tx *Transaction) Cost() *big.Int {
 	total := new(big.Int).Mul(tx.data.Price, new(big.Int).SetUint64(tx.data.GasLimit))
 	total.Add(total, tx.data.Amount)
@@ -261,21 +280,26 @@ func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 }
 
 // Transactions is a Transaction slice type for basic sorting.
+// Transactions는 기본 정렬을 위한 transation의 배열이다
 type Transactions []*Transaction
 
 // Len returns the length of s.
+// Len함수는 트렌젝션들의 길이를 반환한다
 func (s Transactions) Len() int { return len(s) }
 
 // Swap swaps the i'th and the j'th element in s.
+// Swap함수는 i,j번째의 원소를 교체한다
 func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 // GetRlp implements Rlpable and returns the i'th element of s in rlp.
+// GetRlp함수는 rlpable을 구현하며 rlp상의 i번째 원소를 반환한다
 func (s Transactions) GetRlp(i int) []byte {
 	enc, _ := rlp.EncodeToBytes(s[i])
 	return enc
 }
 
 // TxDifference returns a new set t which is the difference between a to b.
+// TxDifferece함수는 a와 b 트렌젝션사이에 다른 새로운 트렌젝션 세트를 반환한다
 func TxDifference(a, b Transactions) (keep Transactions) {
 	keep = make(Transactions, 0, len(a))
 
@@ -296,6 +320,8 @@ func TxDifference(a, b Transactions) (keep Transactions) {
 // TxByNonce implements the sort interface to allow sorting a list of transactions
 // by their nonces. This is usually only useful for sorting transactions from a
 // single account, otherwise a nonce comparison doesn't make much sense.
+// TxByNonce 함수는 논스로 트렌젝션을 정리하기 위한 인터페이스를 구현한다.
+// 이것은 단일 계정의 트렌젝션을 정렬하기에 유용하고, 다른때는 논스 비교는 별로 좋지 않다
 type TxByNonce Transactions
 
 func (s TxByNonce) Len() int           { return len(s) }
@@ -304,6 +330,7 @@ func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // TxByPrice implements both the sort and the heap interface, making it useful
 // for all at once sorting as well as individually adding and removing elements.
+// TxByPrice는 각각 추가/제거되는 원소를 한번에 정렬하기에 유용한 정렬과 힙인터페이스를 구현한다.
 type TxByPrice Transactions
 
 func (s TxByPrice) Len() int           { return len(s) }
@@ -325,10 +352,17 @@ func (s *TxByPrice) Pop() interface{} {
 // TransactionsByPriceAndNonce represents a set of transactions that can return
 // transactions in a profit-maximizing sorted order, while supporting removing
 // entire batches of transactions for non-executable accounts.
+// TransactionByPriceAndNocne 구조체는 수익을 최대화하는 형태로 
+// 소팅된 트렌젝션들을 반환할수 있게하거나, 실행 불가능한 계정을 위한 
+// 전체 트렌젝션을 지원하기 위한 트렌젝션의 세트를 나타낸다 
+트렌젝션의 모임을 나타낸다
 type TransactionsByPriceAndNonce struct {
 	txs    map[common.Address]Transactions // Per account nonce-sorted list of transactions
+	// 어카운트별 논스 정렬된 트렌젝션의 리스트
 	heads  TxByPrice                       // Next transaction for each unique account (price heap)
+	// 각 어카운트의 다음 트렌젝션
 	signer Signer                          // Signer for the set of transactions
+	// 트렌젝션 셋의 서명자
 }
 
 // NewTransactionsByPriceAndNonce creates a transaction set that can retrieve
@@ -336,14 +370,17 @@ type TransactionsByPriceAndNonce struct {
 //
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
-// 이 함수는 논스 존중 방식으로 가격정렬된 트렌제견의 세트를 만든다
+// 이 함수는 논스 존중 방식으로 가격정렬된 트렌젹션의 세트를 만든다
+// 입력되는 맵은 호출자가 더이상 생성자와 통신하지 않도록 소유권이 변경된다
 
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price based heap with the head transactions
+	// 헤드 트렌젹션으로 가격 정력 힙을 초기화 한다
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
 		heads = append(heads, accTxs[0])
 		// Ensure the sender address is from the signer
+		// 전송자의 주소가 서명자의 주소가 같은지 확인한다
 		acc, _ := Sender(signer, accTxs[0])
 		txs[acc] = accTxs[1:]
 		if from != acc {
@@ -353,6 +390,7 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 	heap.Init(&heads)
 
 	// Assemble and return the transaction set
+	// 트렌젝션 셋을 분석하고 반환한다
 	return &TransactionsByPriceAndNonce{
 		txs:    txs,
 		heads:  heads,
@@ -361,6 +399,7 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 }
 
 // Peek returns the next transaction by price.
+// Peak함수는 가격 기준으로 다음 트렌젝션을 반환한다
 func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
 	if len(t.heads) == 0 {
 		return nil
@@ -369,6 +408,7 @@ func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
 }
 
 // Shift replaces the current best head with the next one from the same account.
+// shift 함수는 동일한 계정에서 현재 최상의의 헤드를 다음것으로 대체한다
 func (t *TransactionsByPriceAndNonce) Shift() {
 	acc, _ := Sender(t.signer, t.heads[0])
 	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
@@ -382,11 +422,15 @@ func (t *TransactionsByPriceAndNonce) Shift() {
 // Pop removes the best transaction, *not* replacing it with the next one from
 // the same account. This should be used when a transaction cannot be executed
 // and hence all subsequent ones should be discarded from the same account.
+// pop 함수는 최상의 트렌젝션을 제거하고, 동일한 어카운트로 부터 온 다음의 것으로 대체한다.
+// 이것은 트렌젝션이 실행될수 없을때만 사용되어야 하고
+// 모든 다음 동작은 동일한 어카운트로부터 제거 되야한다 
 func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
 // Message is a fully derived transaction and implements core.Message
+// Message 구조체는 완전 유도된 트렌젝션이며, core.Message를 구현한다
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
