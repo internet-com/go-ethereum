@@ -71,6 +71,7 @@ v0.2 현재 126개 파일에 약 1000줄의 주석이 한글로 변환되었습�
  	* package rawdb:저수준 DB 접근자 (read, write,delete)
  	* package state: 이더리움 상태 트라이의 최상위 캐싱 레이어
 	* package types: 이더리움 함의와 관련된 데이터 타입들(block, bloom9, log, receipt, transaciton)
+![](https://steemitimages.com/0x0/https://cdn.steemitimages.com/DQmcWwL9V94xtqQA3TpAJbeuusNw25C1nZ3Lbm7cPENVEcj/image.png)
  	* package vm: 이더리움 버추얼 머신, 바이트 코드 버추얼 머신. 바이트 코드 버추얼 머신은 바이트 셋을 반복하며 황서기준의 룰에 따라 실행한다
  		* package runtime: EVM코드를 실행하기 위한 기본 실행 모델
 
@@ -112,7 +113,7 @@ v0.2 현재 126개 파일에 약 1000줄의 주석이 한글로 변환되었습�
  * package eth: 이더리움 프로토콜을 구현한다 
  	* package downloader: 수동 full 체인 동기화
  	* package fetcher: 동기화를 기반으로한 블록 알람
- 	* package filters: 블록, 트렌젝션, 로그이벤트를 위한 이더리움 필터링 시스템
+ 	* package filters: 외부 클라이언트에게 이더리움 프로토콜에 관련된 블록, 트렌젝션, 로그등 다양한 정보를 반환하기 위한 이더리움 필터링 시스템(RPC API)
  	* package gasprice: 가스 오라클 및 블록 가격
  	* package tracers: 자바스크립트 트렌젝션 추적자의 모임
  	* 
