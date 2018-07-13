@@ -16,6 +16,7 @@
 
 // Package filters implements an ethereum filtering system for block,
 // transactions and log events.
+// filters패키지는 블록, 트렌젝션, 로그이벤트들을 위한 이더리움 필터링 시스템을 구현한다
 package filters
 
 import (
@@ -37,23 +38,31 @@ import (
 
 // Type determines the kind of filter and is used to put the filter in to
 // the correct bucket when added.
+// Type은 필터의 종류를 결정하며, 필터 추가시 필터를 올바른 버켓으로 던진다
 type Type byte
 
 const (
 	// UnknownSubscription indicates an unknown subscription type
+	// UnkownSubscription은 알려지지않은 구독타입을 나타낸다
 	UnknownSubscription Type = iota
 	// LogsSubscription queries for new or removed (chain reorg) logs
+	// LogsSubscription은 새로운 것을 쿼리하거나 로그를 제거한다
 	LogsSubscription
 	// PendingLogsSubscription queries for logs in pending blocks
+	// PendingLogsSubscription은 펜딩블록의 로그를 쿼리하는데 쓰인다
 	PendingLogsSubscription
 	// MinedAndPendingLogsSubscription queries for logs in mined and pending blocks.
+	// MinedAndPendingLogsSubscriton은 채굴되었거나 대기중인 블록의 로그를 쿼리한다
 	MinedAndPendingLogsSubscription
 	// PendingTransactionsSubscription queries tx hashes for pending
 	// transactions entering the pending state
+	// PendingTransactionSubscriton은 대기중상태로 들어간 디기 트렌젝션 해시를 쿼리한다
 	PendingTransactionsSubscription
 	// BlocksSubscription queries hashes for blocks that are imported
+	// BlocksSubscription은 수입된 블록의 해시를 쿼리한다
 	BlocksSubscription
 	// LastSubscription keeps track of the last index
+	// LastIndexSubscription은 마지막 인덱스를 트래킹한다
 	LastIndexSubscription
 )
 
@@ -61,12 +70,17 @@ const (
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
+	// txChanSize는 NewTXsEvent를 수신하기 위한 채널의 크기이다
+	// 이 숫자는 Txpoll의 크기로 부터 참조된다
 	txChanSize = 4096
 	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
+	// rmLogsChanSize는 RemovedLogsEvent를 수신하기 위한 채널의 크기이다
 	rmLogsChanSize = 10
 	// logsChanSize is the size of channel listening to LogsEvent.
+	// logsChanSize는 LogsEvent를 수신하기위한 채널의 크기이다
 	logsChanSize = 10
 	// chainEvChanSize is the size of channel listening to ChainEvent.
+	// chainEvChanSize는 ChainEvent를 수신하기 위한 채널의 크기이다
 	chainEvChanSize = 10
 )
 
@@ -83,11 +97,14 @@ type subscription struct {
 	hashes    chan []common.Hash
 	headers   chan *types.Header
 	installed chan struct{} // closed when the filter is installed
+	// filter가 설치되면 닫힌다
 	err       chan error    // closed when the filter is uninstalled
+	// filter가 해체되면 닫힌다
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
+// EventSystem은 구독을 생성하고, 이벤트를 처리하며, 구독영역에 맞는 구독자에게 그들을 전파한다
 type EventSystem struct {
 	mux       *event.TypeMux
 	backend   Backend
@@ -100,6 +117,11 @@ type EventSystem struct {
 	rmLogsSub     event.Subscription         // Subscription for removed log event
 	chainSub      event.Subscription         // Subscription for new chain event
 	pendingLogSub *event.TypeMuxSubscription // Subscription for pending log event
+	// 새로운 트렌젝션 이벤트에 대한 구독
+	// 새로운 로그이벤트에 대한 구독
+	// 제거돈 로그 이벤트에 대한구독
+	// 새로운 체인 이벤트에 대한 구독
+	// 대기중인 로그 이벤트에 대한 구독
 
 	// Channels
 	install   chan *subscription         // install filter for event notification
@@ -108,6 +130,12 @@ type EventSystem struct {
 	logsCh    chan []*types.Log          // Channel to receive new log event
 	rmLogsCh  chan core.RemovedLogsEvent // Channel to receive removed log event
 	chainCh   chan core.ChainEvent       // Channel to receive new chain event
+	// 이벤트 알람을 위한 필터 설치
+	// 이벤트 알람을 위한 필터 제거
+	// 새로운 트렌젝션 이벤트를 받을 채널
+	// 새로운 로그 이벤트를 받을 채널
+	// 새로운 제거된 로그 이벤트를 받을 채널
+	// 새로운 체인이벤트를 받을 체널
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -116,6 +144,11 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
+// NewEventSystem 함수는 주어진 먹스위에 이벤트를 수신하기 위한 새로운 매니저를 생성하고
+// 이벤트를 분석하고 필터링한다
+// 이 함수는 필터의 변화를 반환하기 위한 모든 맵을 사용한다
+// 워크 루프는 필터들에게 이벤트를 포워딩하는데 사용될 자신만의 인덱스를 가진다
+// 반환되는 매니져는 정지 함수나, 주어진 먹스에 의해 정지가 필요한 루프를 가진다
 func NewEventSystem(mux *event.TypeMux, backend Backend, lightMode bool) *EventSystem {
 	m := &EventSystem{
 		mux:       mux,
@@ -130,6 +163,7 @@ func NewEventSystem(mux *event.TypeMux, backend Backend, lightMode bool) *EventS
 	}
 
 	// Subscribe events
+	// 이벤트 구독
 	m.txsSub = m.backend.SubscribeNewTxsEvent(m.txsCh)
 	m.logsSub = m.backend.SubscribeLogsEvent(m.logsCh)
 	m.rmLogsSub = m.backend.SubscribeRemovedLogsEvent(m.rmLogsCh)
@@ -138,6 +172,7 @@ func NewEventSystem(mux *event.TypeMux, backend Backend, lightMode bool) *EventS
 	m.pendingLogSub = m.mux.Subscribe(core.PendingLogsEvent{})
 
 	// Make sure none of the subscriptions are empty
+	// 모든 구독이 비어있지 않은지 체크함
 	if m.txsSub == nil || m.logsSub == nil || m.rmLogsSub == nil || m.chainSub == nil ||
 		m.pendingLogSub.Closed() {
 		log.Crit("Subscribe for event system failed")
@@ -157,11 +192,13 @@ type Subscription struct {
 }
 
 // Err returns a channel that is closed when unsubscribed.
+// Err함수는 구독해지시 체넬이 닫힌 채널을 반환한다
 func (sub *Subscription) Err() <-chan error {
 	return sub.f.err
 }
 
 // Unsubscribe uninstalls the subscription from the event broadcast loop.
+// Unsubscribe함수는 이벤트 광고 루프로부터 구독을 해지한다 
 func (sub *Subscription) Unsubscribe() {
 	sub.unsubOnce.Do(func() {
 	uninstallLoop:
@@ -170,6 +207,9 @@ func (sub *Subscription) Unsubscribe() {
 			// the eventLoop broadcast method to deadlock when writing to the
 			// filter event channel while the subscription loop is waiting for
 			// this method to return (and thus not reading these events).
+			// 구독해지 요청을 쓰고, 로그와 해시를 소모한다. 
+			// 이 것은 구독 루프가 이 함수의 리턴을 기다리는 동안 
+			// 필터 이벤트 채널에 쓸때 이벤트 방송 루프에서 데드락이 발생하는 것을 방지한다
 			select {
 			case sub.es.uninstall <- sub.f:
 				break uninstallLoop
@@ -182,11 +222,15 @@ func (sub *Subscription) Unsubscribe() {
 		// wait for filter to be uninstalled in work loop before returning
 		// this ensures that the manager won't use the event channel which
 		// will probably be closed by the client asap after this method returns.
+		// 리턴하기전에 루프안에서 필터가 해지되기를 기다린다. 
+		// 이것은 매니져가 이함수가 끝난후에 클라이언트에의해 
+		// 닫힐지 모르는 이벤트 체널을 사용하지 못하게 한다
 		<-sub.Err()
 	})
 }
 
 // subscribe installs the subscription in the event broadcast loop.
+// 구독함수는 이벤트 광고 루프에 구독을 설치한다
 func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 	es.install <- sub
 	<-sub.installed
@@ -196,6 +240,8 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // SubscribeLogs creates a subscription that will write all logs matching the
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
+// SubscribeLogs 함수는 주어진 영역에 맞는 모든 로그를 주어진 로그 채널에 쓸 구독을 생성한다.
+// from, to 영역의 기본값은 latest이다. 만약 fromBlock > toBlock이라면 에러를 리턴한다
 func (es *EventSystem) SubscribeLogs(crit ethereum.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
 	var from, to rpc.BlockNumber
 	if crit.FromBlock == nil {
@@ -210,22 +256,27 @@ func (es *EventSystem) SubscribeLogs(crit ethereum.FilterQuery, logs chan []*typ
 	}
 
 	// only interested in pending logs
+	// 펜딩 로그만 관심이 있다
 	if from == rpc.PendingBlockNumber && to == rpc.PendingBlockNumber {
 		return es.subscribePendingLogs(crit, logs), nil
 	}
 	// only interested in new mined logs
+	// 새롭게 채굴된 로그만 관심이 있다
 	if from == rpc.LatestBlockNumber && to == rpc.LatestBlockNumber {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	// only interested in mined logs within a specific block range
+	// 특정 블록 영역의 채굴된 로그만 관심이있다
 	if from >= 0 && to >= 0 && to >= from {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	// interested in mined logs from a specific block number, new logs and pending logs
+	// 특정 블록 영역의 채굴된 로그와 새로운 로그와 펜딩로그에만 관심이 있다
 	if from >= rpc.LatestBlockNumber && to == rpc.PendingBlockNumber {
 		return es.subscribeMinedPendingLogs(crit, logs), nil
 	}
 	// interested in logs from a specific block number to new mined blocks
+	// 특정블록부터 새롭게 채굴된 블록까지의 로그에 관심이 있다
 	if from >= 0 && to == rpc.LatestBlockNumber {
 		return es.subscribeLogs(crit, logs), nil
 	}
@@ -234,6 +285,7 @@ func (es *EventSystem) SubscribeLogs(crit ethereum.FilterQuery, logs chan []*typ
 
 // subscribeMinedPendingLogs creates a subscription that returned mined and
 // pending logs that match the given criteria.
+// subscribeMinePendingLogs함수는 채굴되었거나 대기중인 영역에 맞는 로그에 대한 구독을 생성한다
 func (es *EventSystem) subscribeMinedPendingLogs(crit ethereum.FilterQuery, logs chan []*types.Log) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
@@ -251,6 +303,7 @@ func (es *EventSystem) subscribeMinedPendingLogs(crit ethereum.FilterQuery, logs
 
 // subscribeLogs creates a subscription that will write all logs matching the
 // given criteria to the given logs channel.
+// subscribeLogs함수는 전달된 채널에 영역에 맞는 모든 로그를 쓸 구독을 생성한다
 func (es *EventSystem) subscribeLogs(crit ethereum.FilterQuery, logs chan []*types.Log) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
@@ -268,6 +321,7 @@ func (es *EventSystem) subscribeLogs(crit ethereum.FilterQuery, logs chan []*typ
 
 // subscribePendingLogs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
+// subscribePendingLogs함수는 트렌젝션 풀에 들어간 트렌젝션들의 트렌젝션 해시 구독을 생성한다
 func (es *EventSystem) subscribePendingLogs(crit ethereum.FilterQuery, logs chan []*types.Log) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
@@ -285,6 +339,7 @@ func (es *EventSystem) subscribePendingLogs(crit ethereum.FilterQuery, logs chan
 
 // SubscribeNewHeads creates a subscription that writes the header of a block that is
 // imported in the chain.
+// SubscribeNewHeads 함수는 체인에 들어오는 블록의 헤더를 쓸 구독을 생성한다
 func (es *EventSystem) SubscribeNewHeads(headers chan *types.Header) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
@@ -301,6 +356,7 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.Header) *Subscripti
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
+// SubscribePendingTxs 함수는 트렌젝션 풀에 들어간 트렌젝션들의 트렌젝션 해시를 쓸구독을 생성한다
 func (es *EventSystem) SubscribePendingTxs(hashes chan []common.Hash) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
@@ -318,6 +374,7 @@ func (es *EventSystem) SubscribePendingTxs(hashes chan []common.Hash) *Subscript
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // broadcast event to filters that match criteria.
+// braodcast함수는 매칭된 이벤트를 필터로 광고한다
 func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	if ev == nil {
 		return
@@ -381,6 +438,7 @@ func (es *EventSystem) lightFilterNewHead(newHeader *types.Header, callBack func
 	}
 	newh := newHeader
 	// find common ancestor, create list of rolled back and new block hashes
+	// 공통의 조상을 찾고 롤복 리스트와 새블록해시를 생성한다
 	var oldHeaders, newHeaders []*types.Header
 	for oldh.Hash() != newh.Hash() {
 		if oldh.Number.Uint64() >= newh.Number.Uint64() {
@@ -392,21 +450,25 @@ func (es *EventSystem) lightFilterNewHead(newHeader *types.Header, callBack func
 			newh = rawdb.ReadHeader(es.backend.ChainDb(), newh.ParentHash, newh.Number.Uint64()-1)
 			if newh == nil {
 				// happens when CHT syncing, nothing to do
+				// CHT 싱크때 발생, nop
 				newh = oldh
 			}
 		}
 	}
 	// roll back old blocks
+	// 오래된 블록들을 롤백한다
 	for _, h := range oldHeaders {
 		callBack(h, true)
 	}
 	// check new blocks (array is in reverse order)
+	// 새로운 블록을 체크한다
 	for i := len(newHeaders) - 1; i >= 0; i-- {
 		callBack(newHeaders[i], false)
 	}
 }
 
 // filter logs of a single header in light client mode
+// 라이트 클라이언트 모드의 단일 해더의 필터 로그들
 func (es *EventSystem) lightFilterLogs(header *types.Header, addresses []common.Address, topics [][]common.Hash, remove bool) []*types.Log {
 	if bloomFilter(header.Bloom, addresses, topics) {
 		// Get the logs of the block
@@ -447,6 +509,7 @@ func (es *EventSystem) lightFilterLogs(header *types.Header, addresses []common.
 }
 
 // eventLoop (un)installs filters and processes mux events.
+// eventLoop는 필터를 설치제거하고 먹스 이벤트를 처리한다
 func (es *EventSystem) eventLoop() {
 	// Ensure all subscriptions get cleaned up
 	defer func() {
@@ -475,6 +538,7 @@ func (es *EventSystem) eventLoop() {
 			es.broadcast(index, ev)
 		case ev, active := <-es.pendingLogSub.Chan():
 			if !active { // system stopped
+			// 시스템 중지
 				return
 			}
 			es.broadcast(index, ev)
@@ -482,6 +546,7 @@ func (es *EventSystem) eventLoop() {
 		case f := <-es.install:
 			if f.typ == MinedAndPendingLogsSubscription {
 				// the type are logs and pending logs subscriptions
+				// 타입은 로그와 펜딩 로그 구독이다
 				index[LogsSubscription][f.id] = f
 				index[PendingLogsSubscription][f.id] = f
 			} else {
@@ -492,6 +557,7 @@ func (es *EventSystem) eventLoop() {
 		case f := <-es.uninstall:
 			if f.typ == MinedAndPendingLogsSubscription {
 				// the type are logs and pending logs subscriptions
+				// 타입은 로그와 펜딩 로그 구독이다
 				delete(index[LogsSubscription], f.id)
 				delete(index[PendingLogsSubscription], f.id)
 			} else {
@@ -500,6 +566,7 @@ func (es *EventSystem) eventLoop() {
 			close(f.err)
 
 		// System stopped
+		// 시스템 중지
 		case <-es.txsSub.Err():
 			return
 		case <-es.logsSub.Err():
