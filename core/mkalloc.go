@@ -24,6 +24,8 @@
        go run mkalloc.go genesis.json
 
 */
+// mkalloc 툴은 genesis_alloc.go에서 제네시스 할당 상수로 쓰이며,
+// 이것의 아웃풋은 RLP인코딩된 튜플의 리스트로 정의된다(주소, 잔고)
 package main
 
 import (

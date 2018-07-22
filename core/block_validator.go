@@ -30,10 +30,14 @@ import (
 // BlockValidator는 블록헤더와 엉클을 검증하고 스테이트를 처리해야한다
 
 // BlockValidator implements Validator.
+// BlockValidator 구조체는 검증자를 구현한다
 type BlockValidator struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
 	engine consensus.Engine    // Consensus engine used for validating
+// 체인 설정옵션
+// 합의된 블록체인
+// 검증에 사용될 합의엔진
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -54,6 +58,7 @@ func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engin
 // 헤더는 이미 검증되었다고 가정한다
 func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
+	// 블록이 이미 알려졌는지 확인하고, 아니라면 연결가능한 후보이다
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
 		return ErrKnownBlock
 	}
@@ -92,17 +97,21 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	}
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.
+	// 생성된 영수증들중 유도된 하나로부터 수신한 블록의 블룸을 검증한다.
+	// 유효한 블록에 대하여 이것은 언제나 참이여야한다
 	rbloom := types.CreateBloom(receipts)
 	if rbloom != header.Bloom {
 		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", header.Bloom, rbloom)
 	}
 	// Tre receipt Trie's root (R = (Tr [[H1, R1], ... [Hn, R1]]))
+	// 영수증 트라이의 루트
 	receiptSha := types.DeriveSha(receipts)
 	if receiptSha != header.ReceiptHash {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", header.ReceiptHash, receiptSha)
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
+	// 상태 루트를 수신한 루트와 대조하여 검증하고 서로 맞지 않을 경우 에러를 반환한다
 	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", header.Root, root)
 	}
@@ -137,6 +146,7 @@ func CalcGasLimit(parent *types.Block) uint64 {
 	}
 	// however, if we're now below the target (TargetGasLimit) we increase the
 	// limit as much as we can (parentGasLimit / 1024 -1)
+	// 만약 타겟값보다 아래에 있다면, 가능한한 많이로 증가시킨다
 	if limit < params.TargetGasLimit {
 		limit = parent.GasLimit() + decay
 		if limit > params.TargetGasLimit {

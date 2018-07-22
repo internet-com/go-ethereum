@@ -59,6 +59,7 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
+	// 이 필드들은 합의 테스트에 사용된다 실제 제네시스 블록에서는 사용하지 말것
 	Number     uint64      `json:"number"`
 	GasUsed    uint64      `json:"gasUsed"`
 	ParentHash common.Hash `json:"parentHash"`
@@ -91,6 +92,7 @@ type GenesisAccount struct {
 }
 
 // field type overrides for gencodec
+// gencodec을 위한 필드 타입들
 type genesisSpecMarshaling struct {
 	Nonce      math.HexOrDecimal64
 	Timestamp  math.HexOrDecimal64
@@ -112,6 +114,8 @@ type genesisAccountMarshaling struct {
 
 // storageJSON represents a 256 bit byte array, but allows less than 256 bits when
 // unmarshaling from hex.
+// StorageJSON는 256 bit 바이트 어레이를 나타낸다. 
+// 그러나 hex로 unmarshal할경우 256bit 보다 작아질수 있다
 type storageJSON common.Hash
 
 func (h *storageJSON) UnmarshalText(text []byte) error {
@@ -133,6 +137,8 @@ func (h storageJSON) MarshalText() ([]byte, error) {
 
 // GenesisMismatchError is raised when trying to overwrite an existing
 // genesis block with an incompatible one.
+// GenesisMismatchError는 이미 존재하는 제네시스 블록을 
+// 호환되지 않는것으로 덮어쓰려할때 발생한다
 type GenesisMismatchError struct {
 	Stored, New common.Hash
 }
@@ -202,12 +208,15 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	// Special case: don't change the existing config of a non-mainnet chain if no new
 	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
 	// if we just continued here.
+	// 새로운 config가 제공되지 않을 경우 메인넷 이외의 채널의 설정을 바꾸지 말것.
 	if genesis == nil && stored != params.MainnetGenesisHash {
 		return storedcfg, stored, nil
 	}
 
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
+	// 설정의 호환성을 체크하고 설정을 쓴다. 
+	// 우리가 블록제로에 있지 않다면 호출자에게 호환에러가 반환될 것이다
 	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
@@ -363,10 +372,12 @@ func DefaultRinkebyGenesisBlock() *Genesis {
 // 반드시 시드가 있어야 한다
 func DeveloperGenesisBlock(period uint64, faucet common.Address) *Genesis {
 	// Override the default period to the user requested one
+	// 유저가 원하는 값으로 기본 주기를 덮어쓴다
 	config := *params.AllCliqueProtocolChanges
 	config.Clique.Period = period
 
 	// Assemble and return the genesis with the precompiles and faucet pre-funded
+	// 이미 컴파일된 것들 및 이미 정의된 수도꼭지와 함께 제네시스를 조립하여 반환한다
 	return &Genesis{
 		Config:     &config,
 		ExtraData:  append(append(make([]byte, 32), faucet[:]...), make([]byte, 65)...),

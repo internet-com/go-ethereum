@@ -30,10 +30,12 @@ import (
 // 블록의 내용을 검증하는것 만을 담고있다.
 type Validator interface {
 	// ValidateBody validates the given block's content.
+	// ValidateBody함수는 주어진 블록의 내용을 검즈한다
 	ValidateBody(block *types.Block) error
 
 	// ValidateState validates the given statedb and optionally the receipts and
 	// gas used.
+	// ValidateState함수는 주어진 db와 영수증과 가스 사용량을 검증한다
 	ValidateState(block, parent *types.Block, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
 }
 

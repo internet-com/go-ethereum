@@ -36,6 +36,9 @@ type StateProcessor struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
 	engine consensus.Engine    // Consensus engine used for block rewards
+	// 체인 설정 옵션
+	// 캐노니컬 블록체인
+	// 블록보상을 위한 합의엔진
 }
 
 // NewStateProcessor initialises a new StateProcessor.
@@ -69,6 +72,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		gp       = new(GasPool).AddGas(block.GasLimit())
 	)
 	// Mutate the the block and state according to any hard-fork specs
+	// 블록과 상태를 하드포크 스펙에 맞게 변형한다
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
 	}
@@ -129,14 +133,19 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing wether the root touch-delete accounts.
+	// 트렌젝션을 위한 새로운 영수증을 생성하고 임시 루트와 
+	// 트렌젝션에의해 사용된 가스 사용량을 EIP기반으로 저장한다
+
 	receipt := types.NewReceipt(root, failed, *usedGas)
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = gas
 	// if the transaction created a contract, store the creation address in the receipt.
+	// 만약 트렌젝션이 계약의 생성이라면 영수증의에 계약 주소를 저장한다
 	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 	}
 	// Set the receipt logs and create a bloom for filtering
+	// 필터링을 위해 영수증 로그와 블룸을 생성한다
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 

@@ -40,13 +40,19 @@ import (
 type ChainIndexerBackend interface {
 	// Reset initiates the processing of a new chain segment, potentially terminating
 	// any partially completed operations (in case of a reorg).
+	// reset함수는 새로운 체인 조각의 처리를 초기화 한다. (재구성의 경우)부분적으로 완료된 동작들에의해
+	// 종료될수 있다
+
 	Reset(section uint64, prevHead common.Hash) error
 
 	// Process crunches through the next header in the chain segment. The caller
 	// will ensure a sequential order of headers.
+	//Process함수는 체인조각의 다음 헤더를 향해 나아간다
+	// 호출자는 헤더의 순서를 보장해야 한다
 	Process(header *types.Header)
 
 	// Commit finalizes the section metadata and stores it into the database.
+	// Commit함수는 메타데이터 섹션을 최종화하고 db에저장한다
 	Commit() error
 }
 
@@ -54,9 +60,11 @@ type ChainIndexerBackend interface {
 // ChainIndexerChain은 인덱서를 블록체인에 연결하기 위해 사용되는 인터페이스이다
 type ChainIndexerChain interface {
 	// CurrentHeader retrieves the latest locally known header.
+	// CurrentHeader 함수는 로컬에서 알려진 헤더중 최근값을 반환한다
 	CurrentHeader() *types.Header
 
 	// SubscribeChainEvent subscribes to new head header notifications.
+	// SubscribeChainEvent함수는 새로운 헤드 헤더의 알람을 구독한다
 	SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription
 }
 
@@ -81,23 +89,35 @@ type ChainIndexerChain interface {
 // 이미 끝난 섹션에 영향을 주는 롤백시에만 새로운 헤드 알림을 받을수있다
 type ChainIndexer struct {
 	chainDb  ethdb.Database      // Chain database to index the data from
+	// 데이터를 얻어올 체인 DB
 	indexDb  ethdb.Database      // Prefixed table-view of the db to write index metadata into
-	// 인덱스 데이터를 생성하는 백그라운드 프로세서
+	// 인덱스 메타데이터를 쓰기위한 db의 tableVeiw
 	backend  ChainIndexerBackend // Background processor generating the index data content
+	// 인덱스 데이터를 생성하는 백그라운드 프로세서
 	children []*ChainIndexer     // Child indexers to cascade chain updates to
+	// 체인을 업데이트하기 위한 중첩 인덱서
 
 	active uint32          // Flag whether the event loop was started
 	update chan struct{}   // Notification channel that headers should be processed
 	quit   chan chan error // Quit channel to tear down running goroutines
+	// 이벤트 루프 시작여부
+	// 헤더가 처리되어야 한다는 이벤트 체널
+	// 실행중인 고루틴을 종료시키기 위한 채널
 
 	sectionSize uint64 // Number of blocks in a single chain segment to process
 	confirmsReq uint64 // Number of confirmations before processing a completed segment
+	// 단일 체인조각내의 처리해야할 블록수
+	// 체인조각을 완료 처리 시키기전까지의 컨펌수
 
 	storedSections uint64 // Number of sections successfully indexed into the database
 	knownSections  uint64 // Number of sections known to be complete (block wise)
 	cascadedHead   uint64 // Block number of the last completed section cascaded to subindexers
+	// db에 성공적으로 인덱싱된 섹션의수
+	// 블록단위로 완료될것으로 알려진 섹션의 수
+	// 보조 인덱서에 중첩된 마지막 완료섹션의 블록번호
 
 	throttling time.Duration // Disk throttling to prevent a heavy upgrade from hogging resources
+	// 헤비한 업그레이드를 방지하기 위한 디스크 병목값
 
 	log  log.Logger
 	lock sync.RWMutex
@@ -122,6 +142,7 @@ func NewChainIndexer(chainDb, indexDb ethdb.Database, backend ChainIndexerBacken
 		log:         log.New("type", kind),
 	}
 	// Initialize database dependent fields and start the updater
+	// db의존적 필드를 초기화 하고 업데이터를 시작한다
 	c.loadValidSections()
 	go c.updateLoop()
 
@@ -163,12 +184,14 @@ func (c *ChainIndexer) Close() error {
 	var errs []error
 
 	// Tear down the primary update loop
+	// 주 업데이트 루프를 끝낸다
 	errc := make(chan error)
 	c.quit <- errc
 	if err := <-errc; err != nil {
 		errs = append(errs, err)
 	}
 	// If needed, tear down the secondary event loop
+	// 필요하다면 보조 이벤트 루프를 끝낸다
 	if atomic.LoadUint32(&c.active) != 0 {
 		c.quit <- errc
 		if err := <-errc; err != nil {
@@ -176,12 +199,14 @@ func (c *ChainIndexer) Close() error {
 		}
 	}
 	// Close all children
+	// 모든 자식을 닫는다
 	for _, child := range c.children {
 		if err := child.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	// Return any failures
+	// 발생한 실패를 리턴한다
 	switch {
 	case len(errs) == 0:
 		return nil
@@ -201,11 +226,13 @@ func (c *ChainIndexer) Close() error {
 // 실행되는 부수적인 (or 선택적) 이벤트 루프이다
 func (c *ChainIndexer) eventLoop(currentHeader *types.Header, events chan ChainEvent, sub event.Subscription) {
 	// Mark the chain indexer as active, requiring an additional teardown
+	// 체인 인덱서를 활성화로 표시하고 추가적인 해체를 요구한다
 	atomic.StoreUint32(&c.active, 1)
 
 	defer sub.Unsubscribe()
 
 	// Fire the initial new head event to start any outstanding processing
+	// 대기중인 처리를 시작하기 위해 초기화한 새로운 헤드이벤트를 발생시킨다
 	c.newHead(currentHeader.Number.Uint64(), false)
 
 	var (
@@ -216,11 +243,13 @@ func (c *ChainIndexer) eventLoop(currentHeader *types.Header, events chan ChainE
 		select {
 		case errc := <-c.quit:
 			// Chain indexer terminating, report no failure and abort
+			// 체인인덱서가 종류중. 문제가 없을 보고
 			errc <- nil
 			return
 
 		case ev, ok := <-events:
 			// Received a new event, ensure it's not nil (closing) and update
+			// 새로운 이벤트를 수신. closing evnet인지 체크하고 업데이트한다
 			if !ok {
 				errc := <-c.quit
 				errc <- nil
@@ -233,6 +262,8 @@ func (c *ChainIndexer) eventLoop(currentHeader *types.Header, events chan ChainE
 
 				// TODO(karalabe): This operation is expensive and might block, causing the event system to
 				// potentially also lock up. We need to do with on a different thread somehow.
+				// 공통 조상으로 재구성
+				// lockup가능성이 있고, 다른 스레드에서 처리하는 방법을 해야한다
 				if h := rawdb.FindCommonAncestor(c.chainDb, prevHeader, header); h != nil {
 					c.newHead(h.Number.Uint64(), true)
 				}
@@ -251,17 +282,21 @@ func (c *ChainIndexer) newHead(head uint64, reorg bool) {
 	defer c.lock.Unlock()
 
 	// If a reorg happened, invalidate all sections until that point
+		// 재구성이 일어난다면 특정포인트까지 모든 섹션을 무효화한다
 	if reorg {
 		// Revert the known section number to the reorg point
+		// 재구성 포인트까지 알려진 섹션 번호를 복원한다
 		changed := head / c.sectionSize
 		if changed < c.knownSections {
 			c.knownSections = changed
 		}
 		// Revert the stored sections from the database to the reorg point
+		// 재구성 포인트까지 db의 저장된 섹션을 복원한다
 		if changed < c.storedSections {
 			c.setValidSections(changed)
 		}
 		// Update the new head number to the finalized section end and notify children
+		// 새로우 헤드넘버를 갱신하여 섹션을 최종화하고 자식에게 알린다
 		head = changed * c.sectionSize
 
 		if head < c.cascadedHead {
@@ -273,6 +308,8 @@ func (c *ChainIndexer) newHead(head uint64, reorg bool) {
 		return
 	}
 	// No reorg, calculate the number of newly known sections and update if high enough
+	// 재구성이 일어나지 않을 경우, 새롭게 알려진 섹션의 번호를 계산하고
+	// 충분이 높다면 업데이트한다
 	var sections uint64
 	if head >= c.confirmsReq {
 		sections = (head + 1 - c.confirmsReq) / c.sectionSize
@@ -300,14 +337,17 @@ func (c *ChainIndexer) updateLoop() {
 		select {
 		case errc := <-c.quit:
 			// Chain indexer terminating, report no failure and abort
+			// 체인 인덱서 종료. 문제없음을 알린다
 			errc <- nil
 			return
 
 		case <-c.update:
 			// Section headers completed (or rolled back), update the index
+			// 섹션 헤더들의 종료나 롤벡. 인덱스를 업데이트 한다
 			c.lock.Lock()
 			if c.knownSections > c.storedSections {
 				// Periodically print an upgrade log message to the user
+				// 주기적으로 upgrade log를 유저에제 프린트한다
 				if time.Since(updated) > 8*time.Second {
 					if c.knownSections > c.storedSections+1 {
 						updating = true
@@ -316,12 +356,14 @@ func (c *ChainIndexer) updateLoop() {
 					updated = time.Now()
 				}
 				// Cache the current section count and head to allow unlocking the mutex
+				// 현재 섹션 카운트와 헤드를 mutex를 풀기위해 캐싱한다
 				section := c.storedSections
 				var oldHead common.Hash
 				if section > 0 {
 					oldHead = c.SectionHead(section - 1)
 				}
 				// Process the newly defined section in the background
+				// 새롭게 정의된 섹션을 백그라운드에서 처리한다
 				c.lock.Unlock()
 				newHead, err := c.processSection(section, oldHead)
 				if err != nil {
@@ -330,6 +372,7 @@ func (c *ChainIndexer) updateLoop() {
 				c.lock.Lock()
 
 				// If processing succeeded and no reorgs occcurred, mark the section completed
+				// 처리가 성공했고 재구성이 일어나지 않았따면 섹션을 완료상태로 마킹한다
 				if err == nil && oldHead == c.SectionHead(section-1) {
 					c.setSectionHead(section, newHead)
 					c.setValidSections(section + 1)
@@ -345,11 +388,13 @@ func (c *ChainIndexer) updateLoop() {
 					}
 				} else {
 					// If processing failed, don't retry until further notification
+					// 처리가 실패했을 경우 더이상의 노티가 없는동안은 재시도 하지 않는다
 					c.log.Debug("Chain index processing failed", "section", section, "err", err)
 					c.knownSections = c.storedSections
 				}
 			}
 			// If there are still further sections to process, reschedule
+			// 만약 처리해야할 섹션이 더남아있다면 리스케쥴한다
 			if c.knownSections > c.storedSections {
 				time.AfterFunc(c.throttling, func() {
 					select {
@@ -374,7 +419,7 @@ func (c *ChainIndexer) processSection(section uint64, lastHead common.Hash) (com
 	c.log.Trace("Processing new chain section", "section", section)
 
 	// Reset and partial processing
-
+	// 재설정 및 부분 처리
 	if err := c.backend.Reset(section, lastHead); err != nil {
 		c.setValidSections(0)
 		return common.Hash{}, err
@@ -422,6 +467,7 @@ func (c *ChainIndexer) AddChildIndexer(indexer *ChainIndexer) {
 	c.children = append(c.children, indexer)
 
 	// Cascade any pending updates to new children too
+	// 대기중인 업데이트르 새로운 자식에게 중첩시킨다
 	if c.storedSections > 0 {
 		indexer.newHead(c.storedSections*c.sectionSize-1, false)
 	}
@@ -441,11 +487,13 @@ func (c *ChainIndexer) loadValidSections() {
 // setValidSections 함수는 유효한 섹션의 갯수를 index 에 쓴다
 func (c *ChainIndexer) setValidSections(sections uint64) {
 	// Set the current number of valid sections in the database
+	// 현재 DB상의 유효한 섹션의 번호를 설정한다
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], sections)
 	c.indexDb.Put([]byte("count"), data[:])
 
 	// Remove any reorged sections, caching the valids in the mean time
+	// 재구성된 모든 섹션을 버리고 어느정도 시간동안 유효화한것들을 캐싱힌다
 	for c.storedSections > sections {
 		c.storedSections--
 		c.removeSectionHead(c.storedSections)

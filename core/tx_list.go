@@ -57,6 +57,9 @@ type txSortedMap struct {
 	items map[uint64]*types.Transaction // Hash map storing the transaction data
 	index *nonceHeap                    // Heap of nonces of all the stored transactions (non-strict mode)
 	cache types.Transactions            // Cache of the transactions already sorted
+	// 트렌젝션 데이터를 저장하는 해시맵
+	// 저장된 트렌젝션의 논스 힙
+	// 이미 정렬된 트렌젝션들의 캐시
 }
 
 // newTxSortedMap creates a new nonce-sorted transaction map.
@@ -95,12 +98,14 @@ func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 	var removed types.Transactions
 
 	// Pop off heap items until the threshold is reached
+	// 한계에 도달할때까지 힙 아이템을 꺼낸다
 	for m.index.Len() > 0 && (*m.index)[0] < threshold {
 		nonce := heap.Pop(m.index).(uint64)
 		removed = append(removed, m.items[nonce])
 		delete(m.items, nonce)
 	}
 	// If we had a cached order, shift the front
+	// 만약 우리가 캐싱된 순서를 가지고있다면, 앞쪽으로 보낸다
 	if m.cache != nil {
 		m.cache = m.cache[len(removed):]
 	}
@@ -114,6 +119,7 @@ func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transac
 	var removed types.Transactions
 
 	// Collect all the transactions to filter out
+	// 제거할 트렌젝션들을 수집한다
 	for nonce, tx := range m.items {
 		if filter(tx) {
 			removed = append(removed, tx)
@@ -121,6 +127,7 @@ func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transac
 		}
 	}
 	// If transactions were removed, the heap and cache are ruined
+	// 트렌젝션이 제거되었다면 힙과 캐시를 파괴한다
 	if len(removed) > 0 {
 		*m.index = make([]uint64, 0, len(m.items))
 		for nonce := range m.items {
@@ -138,10 +145,12 @@ func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transac
 //Cap 함수는 아이템의 최대 한계수를 정하고, 이 한계 숫자를 넘는 모든 트렌젝션을 리턴한다
 func (m *txSortedMap) Cap(threshold int) types.Transactions {
 	// Short circuit if the number of items is under the limit
+	// 아이템이 한도보다 적을때
 	if len(m.items) <= threshold {
 		return nil
 	}
 	// Otherwise gather and drop the highest nonce'd transactions
+	// 아니라면 높은 논스의 트렌젝셔들을 모아서 제거한다 
 	var drops types.Transactions
 
 	sort.Sort(*m.index)
@@ -153,6 +162,7 @@ func (m *txSortedMap) Cap(threshold int) types.Transactions {
 	heap.Init(m.index)
 
 	// If we had a cache, shift the back
+	// 캐시가 있다면 되돌린다
 	if m.cache != nil {
 		m.cache = m.cache[:len(m.cache)-len(drops)]
 	}
@@ -164,11 +174,13 @@ func (m *txSortedMap) Cap(threshold int) types.Transactions {
 // Remove함수는 유지중인 맵에서 트렌젝션을 제거하고 트렌젝션의 발견 여부를 반환한다
 func (m *txSortedMap) Remove(nonce uint64) bool {
 	// Short circuit if no transaction is present
+	// 트렌젝션이 없을때
 	_, ok := m.items[nonce]
 	if !ok {
 		return false
 	}
 	// Otherwise delete the transaction and fix the heap index
+	// 트렌젝션을 삭제하고, 힙인덱스를 수정한다
 	for i := 0; i < m.index.Len(); i++ {
 		if (*m.index)[i] == nonce {
 			heap.Remove(m.index, i)
@@ -194,10 +206,12 @@ func (m *txSortedMap) Remove(nonce uint64) bool {
 // 이런 일은 일어나진 않겠지만 실패하는 것보다는 코드로 매니지 해놓는것이 좋다
 func (m *txSortedMap) Ready(start uint64) types.Transactions {
 	// Short circuit if no transactions are available
+	// transaction이 없을때
 	if m.index.Len() == 0 || (*m.index)[0] > start {
 		return nil
 	}
 	// Otherwise start accumulating incremental transactions
+	// 트렌젝션 누적을 시작한다
 	var ready types.Transactions
 	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
 		ready = append(ready, m.items[next])
@@ -223,6 +237,7 @@ func (m *txSortedMap) Len() int {
 // 내용에 대한 어떤 수정이 없는 상태에서 또다시 요청된다면 이 정렬 결과는 캐싱된다
 func (m *txSortedMap) Flatten() types.Transactions {
 	// If the sorting was not cached yet, create and cache it
+	// 정렬이 아직 캐싱되지 않았다면 생성하여 캐싱한다
 	if m.cache == nil {
 		m.cache = make(types.Transactions, 0, len(m.items))
 		for _, tx := range m.items {
@@ -231,6 +246,7 @@ func (m *txSortedMap) Flatten() types.Transactions {
 		sort.Sort(types.TxByNonce(m.cache))
 	}
 	// Copy the cache to prevent accidental modifications
+	// 사고적으로 수정되는 것을 방지하기위해 캐시를 복사함
 	txs := make(types.Transactions, len(m.cache))
 	copy(txs, m.cache)
 	return txs
@@ -244,10 +260,14 @@ func (m *txSortedMap) Flatten() types.Transactions {
 // 펜딩큐와 실행큐양쪽에서 연속된 트렌젝션을 저장하기 위해 사용된다
 type txList struct {
 	strict bool         // Whether nonces are strictly continuous or not
+	// 논스가 연속적인지 아닌지
 	txs    *txSortedMap // Heap indexed sorted hash map of the transactions
+	// 인덱스정렬된 트렌젝션 해시맵의 힙
 
 	costcap *big.Int // Price of the highest costing transaction (reset only if exceeds balance)
+	// 가장 비싼 트렌젝션의 가격
 	gascap  uint64   // Gas limit of the highest spending transaction (reset only if exceeds block limit)
+	// 가장 많이 소모하는 트렌젝션의 최대 가스 소모량
 }
 
 // newTxList create a new transaction list for maintaining nonce-indexable fast,
@@ -280,17 +300,20 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 // 만약 새로운 트렌젝션이 리스트에 수락되었다면 리스트의 비용과 가스 한도역시 갱신될 수 있다
 func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
+	// 더좋고 오래된 트렌젝션이 있다면 abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
 		threshold := new(big.Int).Div(new(big.Int).Mul(old.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
 		// Have to ensure that the new gas price is higher than the old gas
 		// price as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements
+		// 새로운 가스의 가격이 오래된 가스의 가격보다 높은지 확인해야 한다
 		if old.GasPrice().Cmp(tx.GasPrice()) >= 0 || threshold.Cmp(tx.GasPrice()) > 0 {
 			return false, nil
 		}
 	}
 	// Otherwise overwrite the old transaction with the current one
+	// 오래된것을 새것으로 덮어쓴다
 	l.txs.Put(tx)
 	if cost := tx.Cost(); l.costcap.Cmp(cost) < 0 {
 		l.costcap = cost
@@ -327,16 +350,20 @@ func (l *txList) Forward(threshold uint64) types.Transactions {
 // 더높은 값으로 새로 설정될 것이다
 func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
 	// If all transactions are below the threshold, short circuit
+	// 모든 트렌젝션이 한도 밑이라면 짧게 처리
 	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
 		return nil, nil
 	}
 	l.costcap = new(big.Int).Set(costLimit) // Lower the caps to the thresholds
+	// cap을 한도까지 낮춘다
 	l.gascap = gasLimit
 
 	// Filter out all the transactions above the account's funds
+	// 계정의 잔고를 넘는 모든 트렌젝션을 필터링한다
 	removed := l.txs.Filter(func(tx *types.Transaction) bool { return tx.Cost().Cmp(costLimit) > 0 || tx.Gas() > gasLimit })
 
 	// If the list was strict, filter anything above the lowest nonce
+	// 리스트가 강제된다면 최저 논스위의 모든것을 필터링한다 
 	var invalids types.Transactions
 
 	if l.strict && len(removed) > 0 {
@@ -365,11 +392,13 @@ func (l *txList) Cap(threshold int) types.Transactions {
 // 트렌젝션이 찾아졌거나 삭제때문에 무효화된 모든 트렌젝션을 반환한다
 func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 	// Remove the transaction from the set
+	// 세트에서 트렌젝션을 제거한다
 	nonce := tx.Nonce()
 	if removed := l.txs.Remove(nonce); !removed {
 		return false, nil
 	}
 	// In strict mode, filter out non-executable transactions
+	// 강제모드에서는 실행불가능한 트렌젝션을 필터링한다
 	if l.strict {
 		return true, l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > nonce })
 	}
@@ -392,11 +421,13 @@ func (l *txList) Ready(start uint64) types.Transactions {
 }
 
 // Len returns the length of the transaction list.
+// Len함수는 트렌젝션 리스트의 길이를 리턴한다
 func (l *txList) Len() int {
 	return l.txs.Len()
 }
 
 // Empty returns whether the list of transactions is empty or not.
+// Empty 함수는 트렌젝션 리스트가 비었는지를 반환한다
 func (l *txList) Empty() bool {
 	return l.Len() == 0
 }
@@ -422,6 +453,7 @@ func (h priceHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 func (h priceHeap) Less(i, j int) bool {
 	// Sort primarily by price, returning the cheaper one
+	// 가격중심으로 정렬하고, 가장싼 것을 반환한다
 	switch h[i].GasPrice().Cmp(h[j].GasPrice()) {
 	case -1:
 		return true
@@ -429,6 +461,7 @@ func (h priceHeap) Less(i, j int) bool {
 		return false
 	}
 	// If the prices match, stabilize via nonces (high nonce is worse)
+	// 만약 가격이 맞을 경우 논스로 안정화시킨다
 	return h[i].Nonce() > h[j].Nonce()
 }
 
@@ -451,6 +484,9 @@ type txPricedList struct {
 	all    *map[common.Hash]*types.Transaction // Pointer to the map of all transactions
 	items  *priceHeap                          // Heap of prices of all the stored transactions
 	stales int                                 // Number of stale price points to (re-heap trigger)
+	// 모든 트렌젝션의 맵에 대한 포인터
+	// 모든 저장된 트렌젝션의 가격 힙
+	// 오래된 가격을 가리키는 수
 }
 
 // newTxPricedList creates a new price-sorted transaction heap.
@@ -476,11 +512,13 @@ func (l *txPricedList) Put(tx *types.Transaction) {
 // 트렌젝션이 떨어질때의 충분히 큰 비율로 힙을 업데이트 한다
 func (l *txPricedList) Removed() {
 	// Bump the stale counter, but exit if still too low (< 25%)
+	// 오래된 카운터를 증가시키고, 여전히 낮다면 탈출
 	l.stales++
 	if l.stales <= len(*l.items)/4 {
 		return
 	}
 	// Seems we've reached a critical number of stale transactions, reheap
+	// 오래된 트렌젝션의 숫자가 임계수에 도달한것으로 보이니, reheap한다
 	reheap := make(priceHeap, 0, len(*l.all))
 
 	l.stales, l.items = 0, &reheap
@@ -497,21 +535,26 @@ func (l *txPricedList) Removed() {
 
 func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transactions {
 	drop := make(types.Transactions, 0, 128) // Remote underpriced transactions to drop
+	// 원격에 존재하는 드롭할 낮은 가격의 트렌젝션들
 	save := make(types.Transactions, 0, 64)  // Local underpriced transactions to keep
+	// 로컬에 존재하는 보유할 낮은 가격의 트렌젝션들
 
 	for len(*l.items) > 0 {
 		// Discard stale transactions if found during cleanup
+		// 클린업 하는동안 찾아진 오래된 트렌젝션들을 제거한다
 		tx := heap.Pop(l.items).(*types.Transaction)
 		if _, ok := (*l.all)[tx.Hash()]; !ok {
 			l.stales--
 			continue
 		}
 		// Stop the discards if we've reached the threshold
+		// 임계점에 도달했을 경우 폐기를 중단
 		if tx.GasPrice().Cmp(threshold) >= 0 {
 			save = append(save, tx)
 			break
 		}
 		// Non stale transaction found, discard unless local
+		// 오래되지 않은 트렌젝션이 찾아질경우, 로컬이 아니라면 폐기
 		if local.containsTx(tx) {
 			save = append(save, tx)
 		} else {
@@ -529,10 +572,12 @@ func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transact
 // Underpriced 함수는 트렌젝션이 현재 추적중인 가장 저가의 트렌젝션보다 싸거나 같은지 확인한다
 func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) bool {
 	// Local transactions cannot be underpriced
+	// 로컬 트렌젝션은 가격이 낮을수 없음
 	if local.containsTx(tx) {
 		return false
 	}
 	// Discard stale price points if found at the heap start
+	// 힙이 시작될때 찾아진 오래된 가격의 포인트들을 폐기한다
 	for len(*l.items) > 0 {
 		head := []*types.Transaction(*l.items)[0]
 		if _, ok := (*l.all)[head.Hash()]; !ok {
@@ -543,8 +588,10 @@ func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) boo
 		break
 	}
 	// Check if the transaction is underpriced or not
+	// 트렌젝션의 가격이 낮은지 확인
 	if len(*l.items) == 0 {
 		log.Error("Pricing query for empty pool") // This cannot happen, print to catch programming errors
+		// 일어날수 없음
 		return false
 	}
 	cheapest := []*types.Transaction(*l.items)[0]
@@ -557,16 +604,20 @@ func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) boo
 // 전체 풀에서 제거하기 위해 반환한다
 func (l *txPricedList) Discard(count int, local *accountSet) types.Transactions {
 	drop := make(types.Transactions, 0, count) // Remote underpriced transactions to drop
+	// 원격에 존재하는 드롭할 낮은 가격의 트렌젝션들
 	save := make(types.Transactions, 0, 64)    // Local underpriced transactions to keep
+	// 로컬에 존재하는 보유할 낮은 가격의 트렌젝션들
 
 	for len(*l.items) > 0 && count > 0 {
 		// Discard stale transactions if found during cleanup
+		// 클린업 하는동안 찾아진 오래된 트렌젝션들을 제거한다
 		tx := heap.Pop(l.items).(*types.Transaction)
 		if _, ok := (*l.all)[tx.Hash()]; !ok {
 			l.stales--
 			continue
 		}
 		// Non stale transaction found, discard unless local
+		// 오래되지 않은 트렌젝션이 찾아질경우, 로컬이 아니라면 폐기
 		if local.containsTx(tx) {
 			save = append(save, tx)
 		} else {

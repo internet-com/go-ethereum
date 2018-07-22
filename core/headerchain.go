@@ -61,11 +61,14 @@ type HeaderChain struct {
 	// 헤더체인의 현재 헤더를 나타내며, block chain보다 앞설것입니다
 	// @sigmoid: 블록체인의 header는 latest를 나타내며, 동기화시 헤더를 먼저 받기 때문에, 
 	// 블록체인의 latest보다 주로 앞서게 됩니다.
+
 	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)
+	//헤더체인의 현재 해시
 
 	headerCache *lru.Cache // Cache for the most recent block headers
 	tdCache     *lru.Cache // Cache for the most recent block total difficulties
 	numberCache *lru.Cache // Cache for the most recent block numbers
+	// 가장 최근에 사용된 블록헤더, 블록의 TD, 번호
 
 	procInterrupt func() bool
 
@@ -87,6 +90,7 @@ func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine c
 	numberCache, _ := lru.New(numberCacheLimit)
 
 	// Seed a fast but crypto originating random generator
+	// 빠르지만 암호화된 랜덤 생성자
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
@@ -150,11 +154,13 @@ func (hc *HeaderChain) GetBlockNumber(hash common.Hash) *uint64 {
 // 블록체인을 말합니다.
 func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, err error) {
 	// Cache some values to prevent constant recalculation
+	// 상수를 재연산하는것을 막기 위한 캐시값들
 	var (
 		hash   = header.Hash()
 		number = header.Number.Uint64()
 	)
 	// Calculate the total difficulty of the header
+	// 헤더의 TD를 계산한다
 	ptd := hc.GetTd(header.ParentHash, number-1)
 	if ptd == nil {
 		return NonStatTy, consensus.ErrUnknownAncestor
@@ -163,6 +169,7 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 	externTd := new(big.Int).Add(header.Difficulty, ptd)
 
 	// Irrelevant of the canonical status, write the td and header to the database
+	// 캐노니컬 상태와 무관한것들인 TD와 헤더를 DB에쓴다
 	if err := hc.WriteTd(hash, number, externTd); err != nil {
 		log.Crit("Failed to write header total difficulty", "err", err)
 	}
@@ -171,8 +178,11 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
+	// 만약 TD가 알려진것보다 크다면, 이것을 캐노니컬 체인에 추가한다
+	// 두번째 절의 if는 이기적인 마이닝에 대한 취약성을 줄여준다
 	if externTd.Cmp(localTd) > 0 || (externTd.Cmp(localTd) == 0 && mrand.Float64() < 0.5) {
 		// Delete any canonical number assignments above the new head
+		// 새로운 해드보다 높은 캐노니컬 번호를 삭제한다
 		for i := number + 1; ; i++ {
 			hash := rawdb.ReadCanonicalHash(hc.chainDb, i)
 			if hash == (common.Hash{}) {
@@ -181,6 +191,7 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 			rawdb.DeleteCanonicalHash(hc.chainDb, i)
 		}
 		// Overwrite any stale canonical number assignments
+		// 오래된 캐노니컬 번호 할당을 덮어쓴다
 		var (
 			headHash   = header.ParentHash
 			headNumber = header.Number.Uint64() - 1
@@ -194,6 +205,7 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 			headHeader = hc.GetHeader(headHash, headNumber)
 		}
 		// Extend the canonical chain with the new header
+		// 새로운 헤더와함께 캐노니컬 체인을 확장한다
 		rawdb.WriteCanonicalHash(hc.chainDb, hash, number)
 		rawdb.WriteHeadHeaderHash(hc.chainDb, hash)
 
@@ -224,9 +236,11 @@ type WhCallback func(*types.Header) error
 
 func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
+	// 제공된 체인이 실제 주문되고 링크되었는지 확인한다
 	for i := 1; i < len(chain); i++ {
 		if chain[i].Number.Uint64() != chain[i-1].Number.Uint64()+1 || chain[i].ParentHash != chain[i-1].Hash() {
 			// Chain broke ancestry, log a messge (programming error) and skip insertion
+			// 공통조상이 깨진 체인일경우 로그를 남기고 삽입을 스킵한다
 			log.Error("Non contiguous header insert", "number", chain[i].Number, "hash", chain[i].Hash(),
 				"parent", chain[i].ParentHash, "prevnumber", chain[i-1].Number, "prevhash", chain[i-1].Hash())
 
@@ -236,6 +250,7 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 	}
 
 	// Generate the list of seal verification requests, and start the parallel verifier
+	// 인장 검증 요청의 리스트를 생성하고 병렬 검증을 시작한다
 	seals := make([]bool, len(chain))
 	for i := 0; i < len(seals)/checkFreq; i++ {
 		index := i*checkFreq + hc.rand.Intn(checkFreq)
@@ -250,17 +265,21 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 	defer close(abort)
 
 	// Iterate over the headers and ensure they all check out
+	// 헤더를 반복하면서 모두 체크되었는지 확인한다
 	for i, header := range chain {
 		// If the chain is terminating, stop processing blocks
+		// 체인이 끝났을 경우 블록처리도 끝낸다
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during headers verification")
 			return 0, errors.New("aborted")
 		}
 		// If the header is a banned one, straight out abort
+		// 헤더가 퇴장당했다면, abort
 		if BadHashes[header.Hash()] {
 			return i, ErrBlacklistedHash
 		}
 		// Otherwise wait for headers checks and ensure they pass
+		// 아니라면 헤더체크를 기다리고 통과를 확정한다
 		if err := <-results; err != nil {
 			return i, err
 		}
@@ -285,15 +304,19 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 // 각각을 체크할 필요가 없다
 func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, writeHeader WhCallback, start time.Time) (int, error) {
 	// Collect some import statistics to report on
+	// 보고할 입수상태 정보를 모은다
 	stats := struct{ processed, ignored int }{}
 	// All headers passed verification, import them into the database
+	// 모든 헤더의 검증이 통과했으므로 DB로 넣는다
 	for i, header := range chain {
 		// Short circuit insertion if shutting down
+		// 노드 종료시 빠른 삽입
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during headers import")
 			return i, errors.New("aborted")
 		}
 		// If the header's already known, skip it, otherwise store
+		// 헤더가 이미 알려진것이라면 스킵하고 아니라면 저장
 		if hc.HasHeader(header.Hash(), header.Number.Uint64()) {
 			stats.ignored++
 			continue
@@ -304,6 +327,7 @@ func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, writeHeader WhCa
 		stats.processed++
 	}
 	// Report some public statistics so the user has a clue what's going on
+	// 오픈된 현재 상태 정보를 보고한다
 	last := chain[len(chain)-1]
 	log.Info("Imported new block headers", "count", stats.processed, "elapsed", common.PrettyDuration(time.Since(start)),
 		"number", last.Number, "hash", last.Hash(), "ignored", stats.ignored)
@@ -316,11 +340,13 @@ func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, writeHeader WhCa
 // GetBlockHashesFromHash함수는 주어진 해시로부터 제네시스 블록 방향으로의 블록해시의 갯수를 반환한다
 func (hc *HeaderChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []common.Hash {
 	// Get the origin header from which to fetch
+	// fetch를 위한 원본 헤더를 준비한다
 	header := hc.GetHeaderByHash(hash)
 	if header == nil {
 		return nil
 	}
 	// Iterate the headers until enough is collected or the genesis reached
+	// 충분히 반복하거나 제네시스에 도달할때 까지 반복
 	chain := make([]common.Hash, 0, max)
 	for i := uint64(0); i < max; i++ {
 		next := header.ParentHash
@@ -341,6 +367,7 @@ func (hc *HeaderChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []co
 // DB로 부터 반환하고 만약 발견되었을 경우 캐싱한다
 func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	// Short circuit if the td's already in the cache, retrieve otherwise
+	// TD가 이미 캐시에 있다면 캐싱하고, 아니라면 반환한다
 	if cached, ok := hc.tdCache.Get(hash); ok {
 		return cached.(*big.Int)
 	}
@@ -349,6 +376,7 @@ func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 		return nil
 	}
 	// Cache the found body for next time and return
+	// 찾아진 바디를 다음 타임을 위해 캐싱하고 반환한다
 	hc.tdCache.Add(hash, td)
 	return td
 }
@@ -376,8 +404,10 @@ func (hc *HeaderChain) WriteTd(hash common.Hash, number uint64, td *big.Int) err
 
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
+// GetHeader함수는 해시와 번호를 이용하여 DB로부터 블록 헤더를 반환하고 캐싱한다
 func (hc *HeaderChain) GetHeader(hash common.Hash, number uint64) *types.Header {
 	// Short circuit if the header's already in the cache, retrieve otherwise
+	// 헤더들이 이미 캐시에 있을때 짧게끝낸다
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
@@ -386,12 +416,15 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, number uint64) *types.Header 
 		return nil
 	}
 	// Cache the found header for next time and return
+	// 다음번을 위해 헤더를 캐싱하고 리턴한다
+
 	hc.headerCache.Add(hash, header)
 	return header
 }
 
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
 // found.
+//GetHeaderByHash함수는 해시를 이용해 블록헤더를 DB로 부터 반환하고 캐싱한다
 func (hc *HeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	number := hc.GetBlockNumber(hash)
 	if number == nil {
@@ -401,6 +434,7 @@ func (hc *HeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 }
 
 // HasHeader checks if a block header is present in the database or not.
+// HasHeader함수는 블록헤더가 DB상에 있는지 확인한다
 func (hc *HeaderChain) HasHeader(hash common.Hash, number uint64) bool {
 	if hc.numberCache.Contains(hash) || hc.headerCache.Contains(hash) {
 		return true
@@ -410,6 +444,8 @@ func (hc *HeaderChain) HasHeader(hash common.Hash, number uint64) bool {
 
 // GetHeaderByNumber retrieves a block header from the database by number,
 // caching it (associated with its hash) if found.
+// GetHeaderByNumber함수는 번호를 이용해 DB로부터 블록헤더를 반환하고
+// 캐싱한다
 func (hc *HeaderChain) GetHeaderByNumber(number uint64) *types.Header {
 	hash := rawdb.ReadCanonicalHash(hc.chainDb, number)
 	if hash == (common.Hash{}) {
@@ -463,10 +499,12 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		hc.currentHeader.Store(hc.GetHeader(hdr.ParentHash, hdr.Number.Uint64()-1))
 	}
 	// Roll back the canonical chain numbering
+	// 캐노니컬 체인 넘버링을 롤백한다
 	for i := height; i > head; i-- {
 		rawdb.DeleteCanonicalHash(hc.chainDb, i)
 	}
 	// Clear out any stale content from the caches
+	// 오래된 컨텐츠를 캐시로 부터 제거한다
 	hc.headerCache.Purge()
 	hc.tdCache.Purge()
 	hc.numberCache.Purge()

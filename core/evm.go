@@ -31,15 +31,19 @@ import (
 // 현재의 블록체인으로 부터 반환한다.
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
+	// Engine 메소드는 체인의 합의엔진을 반환한다.
 	Engine() consensus.Engine
 
 	// GetHeader returns the hash corresponding to their hash.
+	// GetHeader 메소드는 헤시에 관련된 해더를 반환한다
 	GetHeader(common.Hash, uint64) *types.Header
 }
 
 // NewEVMContext creates a new context for use in the EVM.
+// NewEVMContext함수는 EVM에서 사용할 새로운 컨텍스트를 생성한다
 func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author *common.Address) vm.Context {
 	// If we don't have an explicit author (i.e. not mining), extract from the header
+	// 만약 명백한 저자가 없다면(마이닝이 아니라면) 헤더로부터 해석한다
 	var beneficiary common.Address
 	if author == nil {
 		beneficiary, _ = chain.Engine().Author(header) // Ignore error, we're past header validation
@@ -61,21 +65,25 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
+// GetHashFn함수는 수자를 이용해 해더 해시를 반환하는 함수를 반환한다
 func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
 
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
+		// 캐시가 없다면 만든다
 		if cache == nil {
 			cache = map[uint64]common.Hash{
 				ref.Number.Uint64() - 1: ref.ParentHash,
 			}
 		}
 		// Try to fulfill the request from the cache
+		// 캐시로부터 요구사항을 채우려 노력한다
 		if hash, ok := cache[n]; ok {
 			return hash
 		}
 		// Not cached, iterate the blocks and cache the hashes
+		// 캐싱되어 있지 않음. 블록을 반복하면서 해시들을 캐싱
 		for header := chain.GetHeader(ref.ParentHash, ref.Number.Uint64()-1); header != nil; header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1) {
 			cache[header.Number.Uint64()-1] = header.ParentHash
 			if n == header.Number.Uint64()-1 {

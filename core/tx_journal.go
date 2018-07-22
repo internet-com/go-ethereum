@@ -54,6 +54,8 @@ func (*devNull) Close() error                      { return nil }
 type txJournal struct {
 	path   string         // Filesystem path to store the transactions at
 	writer io.WriteCloser // Output stream to write new transactions into
+	// 트렌젝션을 저장할 파일시스템
+	// 새로운 트렌젝션을 쓸 출력스트림
 }
 
 // newTxJournal creates a new transaction journal to
@@ -69,10 +71,12 @@ func newTxJournal(path string) *txJournal {
 // load 함수는 디스크로 부터 트렌젝션 저널의 덤프를 분석하여 내용을 지정된 풀에 넣는다
 func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 	// Skip the parsing if the journal file doens't exist at all
+	// 저널파일이 더이상 존재하지 않을경우 파싱을 중지한다
 	if _, err := os.Stat(journal.path); os.IsNotExist(err) {
 		return nil
 	}
 	// Open the journal for loading any past transactions
+	// 과거 트렌젝션을 읽기위한 저널을 연다
 	input, err := os.Open(journal.path)
 	if err != nil {
 		return err
@@ -80,16 +84,21 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 	defer input.Close()
 
 	// Temporarily discard any journal additions (don't double add on load)
+	// 임시적으로 저널 추가를 막는다
 	journal.writer = new(devNull)
 	defer func() { journal.writer = nil }()
 
 	// Inject all transactions from the journal into the pool
+	// 저널의 모든 트렌젝션을 풀로 삽입한다
 	stream := rlp.NewStream(input, 0)
 	total, dropped := 0, 0
 
 	// Create a method to load a limited batch of transactions and bump the
 	// appropriate progress counters. Then use this method to load all the
 	// journalled transactions in small-ish batches.
+	// 정해진 량의 트렌젝션 배치를 읽어들일 방법을 정의하고 
+	// 적절한 처리 카운터를 bump한다
+	// 이메소드를 이용하여 작은 배치에서 모든 저널된 트렌젝션을 읽어들인다
 	loadBatch := func(txs types.Transactions) {
 		for _, err := range add(txs) {
 			if err != nil {
@@ -104,6 +113,7 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 	)
 	for {
 		// Parse the next transaction and terminate on error
+		// 다음 트렌젝션을 파싱하고, 에러시 끝낸다
 		tx := new(types.Transaction)
 		if err = stream.Decode(tx); err != nil {
 			if err != io.EOF {
@@ -115,6 +125,7 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 			break
 		}
 		// New transaction parsed, queue up for later, import if threnshold is reached
+		// 새로운 트렌젝션이 파싱되면 큐잉하고 한계에 도달하면 입수한다
 		total++
 
 		if batch = append(batch, tx); batch.Len() > 1024 {
@@ -144,6 +155,7 @@ func (journal *txJournal) insert(tx *types.Transaction) error {
 // rotate 함수는 트렌젝션 풀의 현재 내용을 기반으로 트렌젝션 저널을 만든다
 func (journal *txJournal) rotate(all map[common.Address]types.Transactions) error {
 	// Close the current journal (if any is open)
+	// 현재 저널을 닫는다.
 	if journal.writer != nil {
 		if err := journal.writer.Close(); err != nil {
 			return err
@@ -151,6 +163,7 @@ func (journal *txJournal) rotate(all map[common.Address]types.Transactions) erro
 		journal.writer = nil
 	}
 	// Generate a new journal with the contents of the current pool
+	// 새로운 저널을 풀의 컨텐츠와 함께 생성한다
 	replacement, err := os.OpenFile(journal.path+".new", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
@@ -168,6 +181,7 @@ func (journal *txJournal) rotate(all map[common.Address]types.Transactions) erro
 	replacement.Close()
 
 	// Replace the live journal with the newly generated one
+	// 새롭게 생성된 저널로 교체한다
 	if err = os.Rename(journal.path+".new", journal.path); err != nil {
 		return err
 	}

@@ -19,6 +19,7 @@ package core
 import "github.com/ethereum/go-ethereum/common"
 
 // BadHashes represent a set of manually tracked bad hashes (usually hard forks)
+// BadHashes는 수동적으로 트래킹되는 배드 해시를 나타낸다( 주로 하드포크들)
 var BadHashes = map[common.Hash]bool{
 	common.HexToHash("05bef30ef572270f654746da22639a7a0c97dd97a7050b9e252391996aaeb689"): true,
 	common.HexToHash("7d05d08cbc596a2e5e4f13b80a743e53e09221b5323c3a61946b20873e58583f"): true,

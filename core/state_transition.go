@@ -95,6 +95,7 @@ type Message interface {
 // 이 함수는 주어진 데이터로 메시지에 대한 내재가스를 계산한다
 func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
+	// 저수준의 트렌젝션을 위한 시작 가스를 설정함
 	var gas uint64
 	if contractCreation && homestead {
 		gas = params.TxGasContractCreation
@@ -102,8 +103,10 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error)
 		gas = params.TxGas
 	}
 	// Bump the required gas by the amount of transactional data
+	// 필요 가스를 트렌젝션 데이터 량 기반으로 증가시킨다
 	if len(data) > 0 {
 		// Zero and non-zero bytes are priced differently
+		// 다른 가격정책
 		var nz uint64
 		for _, byt := range data {
 			if byt != 0 {
@@ -111,6 +114,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error)
 			}
 		}
 		// Make sure we don't exceed uint64 for all data combinations
+		// uint64를 초과하지 않음을 확인한다
 		if (math.MaxUint64-gas)/params.TxDataNonZeroGas < nz {
 			return 0, vm.ErrOutOfGas
 		}
@@ -153,6 +157,7 @@ func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, 
 }
 
 // to returns the recipient of the message.
+// 메시지 수신자들을 반환하기 위함
 func (st *StateTransition) to() common.Address {
 	if st.msg == nil || st.msg.To() == nil /* contract creation */ {
 		return common.Address{}
@@ -186,6 +191,7 @@ func (st *StateTransition) buyGas() error {
 
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
+	// 트렌젝션의 논스가 올바른지 확인
 	if st.msg.CheckNonce() {
 		nonce := st.state.GetNonce(st.msg.From())
 		if nonce < st.msg.Nonce() {
@@ -211,6 +217,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint65, failed bo
 	contractCreation := msg.To() == nil
 
 	// Pay intrinsic gas
+	// 내재가스를 지불
 	gas, err := IntrinsicGas(st.data, contractCreation, homestead)
 	if err != nil {
 		return nil, 0, false, err
@@ -224,12 +231,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint65, failed bo
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.
+		// vm error는 합의에 영향을 주지 않으며, 잔고 이외의 에러는 에러로 간주하지 않는다
 		vmerr error
 	)
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
+		// 다음 트렌젝션을 위한 논스 증가
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
@@ -238,6 +247,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint65, failed bo
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
+		// 발생가능한 유일한 합의 에러는 전송을 하기위한 잔고가 없는경우.
+		// 첫번째 잔고 전송은 실패하지 않는다.
 		if vmerr == vm.ErrInsufficientBalance {
 			return nil, 0, false, vmerr
 		}
@@ -250,6 +261,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint65, failed bo
 
 func (st *StateTransition) refundGas() {
 	// Apply refund counter, capped to half of the used gas.
+	// 환불 카운터를 적용하고 사용량의 반을 깎는다
 	refund := st.gasUsed() / 2
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
@@ -257,15 +269,18 @@ func (st *StateTransition) refundGas() {
 	st.gas += refund
 
 	// Return ETH for remaining gas, exchanged at the original rate.
+	// 남은 가스량에대한 이더를 반환한다
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining)
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
+	// 블록 가스 카운터에게 남은 가스량을 전달하여 다음 트렌젝션에 사용하도록 한다
 	st.gp.AddGas(st.gas)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.
+// gasUsed함수는 상태 전환에 소모된 가스 사용량을 반환한다
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
