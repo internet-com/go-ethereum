@@ -23,16 +23,20 @@ import (
 )
 
 // Protocol represents a P2P subprotocol implementation.
+// Protocol은 p2p 서브 프로토콜의 구현을 나타낸다
 type Protocol struct {
 	// Name should contain the official protocol name,
 	// often a three-letter word.
+	// 이름은 공식적인 프로토콜 이름으로되어야 하며 주로 3글자 단어이다
 	Name string
 
 	// Version should contain the version number of the protocol.
+	// version은 프로토콜의 버전을 포함해야한다
 	Version uint
 
 	// Length should contain the number of message codes used
 	// by the protocol.
+	// 길이는 프로토콜에서 사용하는 메시지 코드의 길이이다
 	Length uint64
 
 	// Run is called in a new groutine when the protocol has been
@@ -42,16 +46,21 @@ type Protocol struct {
 	// The peer connection is closed when Start returns. It should return
 	// any protocol-level error (such as an I/O error) that is
 	// encountered.
-	// Run 함수는 프로토콜이 피어와 협상하는 중에 새로운 고루틴에서 호출된다.
+	// Run은 프로토콜이 피어와 협상하는 동안 새로운 고루틴 안에서 호출된다
+	// rw로 부터 메시지를 읽거나 써야한다. 각 메시지의 페이로드는 모두 소비되어야 한다
+	// 연결은 Start가 리턴하면 닫힌다. 발생하는 모든에러를 반환해야 한다 
 	Run func(peer *Peer, rw MsgReadWriter) error
 
 	// NodeInfo is an optional helper method to retrieve protocol specific metadata
 	// about the host node.
+	// NodeInfo는 호스트 노드에 대한 프로토콜의 메타데이터를 반환받기위한 핼퍼함수이다
 	NodeInfo func() interface{}
 
 	// PeerInfo is an optional helper method to retrieve protocol specific metadata
 	// about a certain peer in the network. If an info retrieval function is set,
 	// but returns nil, it is assumed that the protocol handshake is still running.
+	// PeerInfo는 특정 노드에 대한 프로토콜의 메타데이터를 반환받기위한 핼퍼함수이다. 
+	// 만약 반환함수가 설정되고 null이 반환된다면 프로토콜 핸드쉐이킹이 진행중이라고 가정한다
 	PeerInfo func(id discover.NodeID) interface{}
 }
 
@@ -60,6 +69,7 @@ func (p Protocol) cap() Cap {
 }
 
 // Cap is the structure of a peer capability.
+// Cap은 피어의 능력의 구조체이다
 type Cap struct {
 	Name    string
 	Version uint

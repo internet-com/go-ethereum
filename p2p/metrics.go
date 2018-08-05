@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Contains the meters and timers used by the networking layer.
+// 네트워크 레이어에서 사용될 meter와 timer를 포함한다
 
 package p2p
 
@@ -33,19 +34,25 @@ var (
 
 // meteredConn is a wrapper around a network TCP connection that meters both the
 // inbound and outbound network traffic.
+// meteredConn은 내/외부트레픽을 측정을 포함하는 TCP 연결 래퍼이다
 type meteredConn struct {
 	*net.TCPConn // Network connection to wrap with metering
+	// 측정기와 함께 둘러쌀 네트워크 연결
 }
 
 // newMeteredConn creates a new metered connection, also bumping the ingress or
 // egress connection meter. If the metrics system is disabled, this function
 // returns the original object.
+// newMeteredConn 함수는 새로운 측정가능한 연결을 생성하고 진입 진출 측정을 증가시킨다. 
+// 만약 측정시스템이 꺼져있디면 이함수는 원래의 오브젝트를 반환한다
 func newMeteredConn(conn net.Conn, ingress bool) net.Conn {
 	// Short circuit if metrics are disabled
+	// 측정이 껴져있을때 빠른 처리
 	if !metrics.Enabled {
 		return conn
 	}
 	// Otherwise bump the connection counters and wrap the connection
+	// 아니라면 연결 카운터를 증가시키고 연결을 랩핑한다
 	if ingress {
 		ingressConnectMeter.Mark(1)
 	} else {
@@ -56,6 +63,7 @@ func newMeteredConn(conn net.Conn, ingress bool) net.Conn {
 
 // Read delegates a network read to the underlying connection, bumping the ingress
 // traffic meter along the way.
+// Read는 주어진 연결을 통해 네트워크를 읽는것을 위임하고, 진입 미터기를 증가시킨다
 func (c *meteredConn) Read(b []byte) (n int, err error) {
 	n, err = c.TCPConn.Read(b)
 	ingressTrafficMeter.Mark(int64(n))
@@ -64,8 +72,8 @@ func (c *meteredConn) Read(b []byte) (n int, err error) {
 
 // Write delegates a network write to the underlying connection, bumping the
 // egress traffic meter along the way.
+// Write는 주어진 연결을 통해 네트워크를 쓰는것을 위임하고, 진출 미터기를 증가시킨다
 func (c *meteredConn) Write(b []byte) (n int, err error) {
 	n, err = c.TCPConn.Write(b)
 	egressTrafficMeter.Mark(int64(n))
 	return
-}
