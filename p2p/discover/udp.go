@@ -54,8 +54,12 @@ const (
 	ntpFailureThreshold = 32               // Continuous timeouts after which to check NTP
 	ntpWarningCooldown  = 10 * time.Minute // Minimum amount of time to pass before repeating NTP warning
 	driftThreshold      = 10 * time.Second // Allowed clock drift before warning user
+// NPT체크를 위한 연속적인 타임아웃
+// NPT 경고를 반복하기 전 최소 패싱타임
+// 유저 경고전 clock드리프트
 )
 
+// RPC 패킷 타입
 // RPC packet types
 const (
 	pingPacket = iota + 1 // zero is 'reserved'
@@ -65,37 +69,49 @@ const (
 )
 
 // RPC request structures
+// RPC 요청 구조
 type (
 	ping struct {
 		Version    uint
 		From, To   rpcEndpoint
 		Expiration uint64
 		// Ignore additional fields (for forward compatibility).
+		// 추가 필드는 무시한ㄷ
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	// pong is the reply to ping.
+	// pong은 ping의 응답이다
 	pong struct {
 		// This field should mirror the UDP envelope address
 		// of the ping packet, which provides a way to discover the
 		// the external address (after NAT).
+		// 이 필드는 NAT 후에 외부주소를 발견하기 위한 방법을 제공하는 ping패킷의
+		// udp 봉투주소를 미러링 해야한다 
 		To rpcEndpoint
 
 		ReplyTok   []byte // This contains the hash of the ping packet.
 		Expiration uint64 // Absolute timestamp at which the packet becomes invalid.
 		// Ignore additional fields (for forward compatibility).
+		// 핑패킷의 해시를 포함
+		// 패킷이 무효화 되는 절대시간
+		// 추가 필드는 무시한다
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	// findnode is a query for nodes close to the given target.
+	// findnode 구조체는 주어진 타겟에 가까운 노드를 위한 쿼리이다
 	findnode struct {
 		Target     NodeID // doesn't need to be an actual public key
+		// 실제 공개키가 필요하지 않음
 		Expiration uint64
 		// Ignore additional fields (for forward compatibility).
+		//추가 필드는 무시
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	// reply to findnode
+	// find node에 대한 응답
 	neighbors struct {
 		Nodes      []rpcNode
 		Expiration uint64
@@ -114,6 +130,9 @@ type (
 		IP  net.IP // len 4 for IPv4 or 16 for IPv6
 		UDP uint16 // for discovery protocol
 		TCP uint16 // for RLPx protocol
+		// ipv4/6를 위한 4byte
+		// 디스커버리 프로토콜
+		// RLPx프로토콜
 	}
 )
 
@@ -157,6 +176,7 @@ type conn interface {
 }
 
 // udp implements the RPC protocol.
+// udp구조체는 RPC프로토콜을 구현한다
 type udp struct {
 	conn        conn
 	netrestrict *netutil.Netlist
@@ -181,22 +201,34 @@ type udp struct {
 // our implementation handles this by storing a callback function for
 // each pending reply. incoming packets from a node are dispatched
 // to all the callback functions for that node.
+// pending구조체는 지연중인 응답을 나타낸다
+// 프로토콜의 어떤 구현은 노드를 찾기 위하 하나 이상의 응답패킷을 보내길 원한다
+// 일반적으로 이웃 패킷은 특정 findnode패킷에 매칭되지 않는다
+// 우리의 구현은 각 지연된 응답에 대한 콜백펑션을 저장함으로서 관리한다
+// 노드들로 부터 수신되는 패킷들은 해당 노드를 위한 콜백함세들에의해 처리된다
 type pending struct {
 	// these fields must match in the reply.
 	from  NodeID
+	// 이 필드들은 응답에 매칭되어야 한다
 	ptype byte
 
 	// time when the request must complete
 	deadline time.Time
+	// 요청이 완료되어야 하는 시간
 
 	// callback is called when a matching reply arrives. if it returns
 	// true, the callback is removed from the pending reply queue.
 	// if it returns false, the reply is considered incomplete and
 	// the callback will be invoked again for the next matching reply.
+	// callback은 매칭되는 응답이 도달했을 경우 호출된다
+	// 만약 참을 리턴하면 함수는 지연 대기 큐에서제거된다
+	// 거짓을 리턴하면 완료되지 않은것으로 간주되어 재다음 매칭을 위해 실행된다
 	callback func(resp interface{}) (done bool)
 
 	// errc receives nil when the callback indicates completion or an
 	// error if no further reply is received within the timeout.
+	// errc 함수는 콜백함수가 완료되었다면 nil,
+	// 타임아웃되어 더이상의 수신이 없을때는 error를 수신한다
 	errc chan<- error
 }
 
@@ -206,29 +238,40 @@ type reply struct {
 	data  interface{}
 	// loop indicates whether there was
 	// a matching request by sending on this channel.
+	// 루프는 매칭되는 리퀘스트가 있는지를 이 채널을 통해 전송함으로서 알린다
 	matched chan<- bool
 }
 
 // ReadPacket is sent to the unhandled channel when it could not be processed
+// ReadPacket은 처리될수 없을때 처리되지 않은 채널로 전달된다
 type ReadPacket struct {
 	Data []byte
 	Addr *net.UDPAddr
 }
 
 // Config holds Table-related settings.
+// Config구조체는 테이블 관련된 설정을 저장한다
 type Config struct {
 	// These settings are required and configure the UDP listener:
+	// 이 설정들은 요구되며 udp수신자를 설정한다
 	PrivateKey *ecdsa.PrivateKey
 
 	// These settings are optional:
+	// 이 설정들은 옵션이다
 	AnnounceAddr *net.UDPAddr      // local address announced in the DHT
 	NodeDBPath   string            // if set, the node database is stored at this filesystem location
 	NetRestrict  *netutil.Netlist  // network whitelist
 	Bootnodes    []*Node           // list of bootstrap nodes
 	Unhandled    chan<- ReadPacket // unhandled packets are sent on this channel
+	// DHT에서 사용될 로컬어드레스
+	// 설정되어있다면 node db는 이 파일시스템 위치에 저장됨
+	// 네트워크 화이트리스트
+	// 부트스트랩 노드 리스트
+	// 처리되지 않은 패킷들은 이채널로 보내진다
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
+// ListenUDP 함수는 laddr상에서 udp 패킷에 대한 수신자의 새 테이블을 반환한다 
 func ListenUDP(c conn, cfg Config) (*Table, error) {
 	tab, _, err := newUDP(c, cfg)
 	if err != nil {
@@ -271,6 +314,7 @@ func (t *udp) close() {
 }
 
 // ping sends a ping message to the given node and waits for a reply.
+// ping 함수는 주어진 노드로 핑메시지를 전송하고 응답을 대기한다
 func (t *udp) ping(toid NodeID, toaddr *net.UDPAddr) error {
 	req := &ping{
 		Version:    Version,
@@ -295,6 +339,8 @@ func (t *udp) waitping(from NodeID) error {
 
 // findnode sends a findnode request to the given node and waits until
 // the node has sent up to k neighbors.
+// findnode는 findnode 리퀘스트를 주어진 노드로 전송하고 
+// 노드가 k개의 이웃에게 전달될때까지 대기한다
 func (t *udp) findnode(toid NodeID, toaddr *net.UDPAddr, target NodeID) ([]*Node, error) {
 	nodes := make([]*Node, 0, bucketSize)
 	nreceived := 0
@@ -321,6 +367,7 @@ func (t *udp) findnode(toid NodeID, toaddr *net.UDPAddr, target NodeID) ([]*Node
 
 // pending adds a reply callback to the pending reply queue.
 // see the documentation of type pending for a detailed explanation.
+// pending함수는 응답 콜백을 대기중인 응답 큐에 추가한다
 func (t *udp) pending(id NodeID, ptype byte, callback func(interface{}) bool) <-chan error {
 	ch := make(chan error, 1)
 	p := &pending{from: id, ptype: ptype, callback: callback, errc: ch}
@@ -346,15 +393,19 @@ func (t *udp) handleReply(from NodeID, ptype byte, req packet) bool {
 
 // loop runs in its own goroutine. it keeps track of
 // the refresh timer and the pending reply queue.
+// loop 함수는 자체 고루틴을 실행한다. 리프레시 타이머와 펜딩 리플라이 큐를 관리한다
 func (t *udp) loop() {
 	var (
 		plist        = list.New()
 		timeout      = time.NewTimer(0)
 		nextTimeout  *pending // head of plist when timeout was last reset
+		// 타임아웃이 마지막으로 리셋되었을때의 plist 헤드
 		contTimeouts = 0      // number of continuous timeouts to do NTP checks
+		// NTP 체크를 하기 위한 연속적인 타임아웃 수
 		ntpWarnTime  = time.Unix(0, 0)
 	)
 	<-timeout.C // ignore first timeout
+	// 첫 타임아웃은 무시
 	defer timeout.Stop()
 
 	resetTimeout := func() {
@@ -362,6 +413,7 @@ func (t *udp) loop() {
 			return
 		}
 		// Start the timer so it fires when the next pending reply has expired.
+		// 다음 펜딩 응답이 만료되었을때를 위한 타이머를 시작한다
 		now := time.Now()
 		for el := plist.Front(); el != nil; el = el.Next() {
 			nextTimeout = el.Value.(*pending)
@@ -372,6 +424,8 @@ func (t *udp) loop() {
 			// Remove pending replies whose deadline is too far in the
 			// future. These can occur if the system clock jumped
 			// backwards after the deadline was assigned.
+			// 데드라인이 먼미래인 대기중 응답을 제거한다. 데드라인이 설정된후
+			// 시스템 클럭의 시간이 뒤쪽으로 점프했을때 발생가능하다
 			nextTimeout.errc <- errClockWarp
 			plist.Remove(el)
 		}
@@ -403,11 +457,14 @@ func (t *udp) loop() {
 					// that all replies have been received. This is
 					// required for packet types that expect multiple
 					// reply packets.
+					// 매쳐의 콜백이 모든 응답을 수신하였을때, 매처를 제거한다
+					// 이것은 여러개의 응답 패킷을 기대하는 패킷타입을 위해 필요하다
 					if p.callback(r.data) {
 						p.errc <- nil
 						plist.Remove(el)
 					}
 					// Reset the continuous timeout counter (time drift detection)
+					// 연속적인 타임아웃 카운터를 초기화한다
 					contTimeouts = 0
 				}
 			}
@@ -417,6 +474,7 @@ func (t *udp) loop() {
 			nextTimeout = nil
 
 			// Notify and remove callbacks whose deadline is in the past.
+			// 데드라인이 과거인 콜백을 알리고 제거한다
 			for el := plist.Front(); el != nil; el = el.Next() {
 				p := el.Value.(*pending)
 				if now.After(p.deadline) || now.Equal(p.deadline) {
@@ -426,6 +484,7 @@ func (t *udp) loop() {
 				}
 			}
 			// If we've accumulated too many timeouts, do an NTP time sync check
+			// 만약 너무 많은 타임아웃을 누적했다면 NTP 타임싱크 체크를 한다
 			if contTimeouts > ntpFailureThreshold {
 				if time.Since(ntpWarnTime) >= ntpWarningCooldown {
 					ntpWarnTime = time.Now()
@@ -441,6 +500,7 @@ const (
 	macSize  = 256 / 8
 	sigSize  = 520 / 8
 	headSize = macSize + sigSize // space of packet frame data
+	// 패킷 프레임 데이터의 공간
 )
 
 var (
@@ -449,6 +509,9 @@ var (
 	// Neighbors replies are sent across multiple packets to
 	// stay below the 1280 byte limit. We compute the maximum number
 	// of entries by stuffing a packet until it grows too large.
+	// 이웃들의 응답들은 1280byte 리밋 안에서 여러 패킷에 걸쳐 보내진다
+	// 우리는 너무 커지지 않을때까지 패킷 스터핑을 통해 최대 엔트리 숫자를
+	// 계산한다
 	maxNeighbors int
 )
 
@@ -460,6 +523,7 @@ func init() {
 		size, _, err := rlp.EncodeToReader(p)
 		if err != nil {
 			// If this ever happens, it will be caught by the unit tests.
+			// 이것이 발생하면 유닛테스트에서 잡혀야 한다
 			panic("cannot encode: " + err.Error())
 		}
 		if headSize+size+1 >= 1280 {
@@ -501,12 +565,15 @@ func encodePacket(priv *ecdsa.PrivateKey, ptype byte, req interface{}) (packet, 
 	// add the hash to the front. Note: this doesn't protect the
 	// packet in any way. Our public key will be part of this hash in
 	// The future.
+	// 해시를 앞쪽에 추가한다
+	// 패킷을 보호하진 않는다. 우리의 공통키는 미래에 해시의 일부가 될것이다
 	hash = crypto.Keccak256(packet[macSize:])
 	copy(packet, hash)
 	return packet, hash, nil
 }
 
 // readLoop runs in its own goroutine. it handles incoming UDP packets.
+// readLoop 함수는 자체 고루틴 안에서 시행되며, 들어오는 udp 패킷을 처리한다
 func (t *udp) readLoop(unhandled chan<- ReadPacket) {
 	defer t.conn.Close()
 	if unhandled != nil {
@@ -515,15 +582,20 @@ func (t *udp) readLoop(unhandled chan<- ReadPacket) {
 	// Discovery packets are defined to be no larger than 1280 bytes.
 	// Packets larger than this size will be cut at the end and treated
 	// as invalid because their hash won't match.
+	// 디스커버리 패킷들은 1280보다 길게 정의되어서는 안된다
+	// 이것보다 ㅋ믄 패킷은 끝부분이 잘려 매칭되지 않을것이므로 
+	// 무효한 것으로 간주된다
 	buf := make([]byte, 1280)
 	for {
 		nbytes, from, err := t.conn.ReadFromUDP(buf)
 		if netutil.IsTemporaryError(err) {
 			// Ignore temporary read errors.
+			// 임시적인 읽기 에러는 무시
 			log.Debug("Temporary UDP read error", "err", err)
 			continue
 		} else if err != nil {
 			// Shut down the loop for permament errors.
+			// 영구적인 에러는 루프를 닫는다
 			log.Debug("UDP read error", "err", err)
 			return
 		}
@@ -589,6 +661,7 @@ func (req *ping) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) er
 	})
 	if !t.handleReply(fromID, pingPacket, req) {
 		// Note: we're ignoring the provided IP address right now
+		// 제공된 ip address는 현재로서는 무시할것이다
 		go t.bond(true, fromID, from, req.From.TCP)
 	}
 	return nil
@@ -620,6 +693,12 @@ func (req *findnode) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte
 		// port of the target as the source address. The recipient of
 		// the findnode packet would then send a neighbors packet
 		// (which is a much bigger packet than findnode) to the victim.
+		// 본드가 존재하지 않아 패킷을 처리하지 않는다
+		// 이것은 ddos 공격에서 디스커버리 프로토콜이 트래픽을 증가시키는
+		// 공격백터로 쓰이는것을 막는다.
+		// 악의적인 행위자는 findnode 요청을 타겟의 ip주소와 udp포트 주소로
+		// 전송할 것이다. 수신자는 findnode보다 엄청 큰 이웃 패킷을 희생자에게
+		// 전송한다
 		return errUnknownNode
 	}
 	target := crypto.Keccak256Hash(req.Target[:])
@@ -631,6 +710,7 @@ func (req *findnode) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte
 	var sent bool
 	// Send neighbors in chunks with at most maxNeighbors per packet
 	// to stay below the 1280 byte limit.
+	// 1280 바이트한도 안쪽으로 이웃들을 전송한다
 	for _, n := range closest {
 		if netutil.CheckRelayIP(from.IP, n.IP) == nil {
 			p.Nodes = append(p.Nodes, nodeToRPC(n))

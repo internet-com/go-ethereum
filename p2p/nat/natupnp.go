@@ -102,6 +102,8 @@ func (n *upnp) String() string {
 
 // discoverUPnP searches for Internet Gateway Devices
 // and returns the first one it can find on the local network.
+// discoverUPnp 인터페이스는 인터넷 게이트웨이 장비를 검색하고 로컬 네트워크에서
+// 찾은 첫번째 것을 반환한다
 func discoverUPnP() Interface {
 	found := make(chan *upnp, 2)
 	// IGDv1
@@ -137,6 +139,9 @@ func discoverUPnP() Interface {
 // finds devices matching the given target and calls matcher for all
 // advertised services of each device. The first non-nil service found
 // is sent into out. If no service matched, nil is sent.
+// 주어진 타겟에 매칭되는 디바이스를 찾고 각 디바이스의 알려진 모든 서비스를 위한 매쳐를 호출한다
+// 첫번째 nil이 아닌 찾아진 서비스는 out으로 전송된다
+// 아무서비스가 매칭되지 않으면 nil이 전송된다
 func discover(out chan<- *upnp, target string, matcher func(*goupnp.RootDevice, goupnp.ServiceClient) *upnp) {
 	devs, err := goupnp.DiscoverDevices(target)
 	if err != nil {
@@ -153,6 +158,7 @@ func discover(out chan<- *upnp, target string, matcher func(*goupnp.RootDevice, 
 				return
 			}
 			// check for a matching IGD service
+			// IGD서비스 매칭을 위한 체크
 			sc := goupnp.ServiceClient{
 				SOAPClient: service.NewSOAPClient(),
 				RootDevice: devs[i].Root,
@@ -165,6 +171,7 @@ func discover(out chan<- *upnp, target string, matcher func(*goupnp.RootDevice, 
 				return
 			}
 			// check whether port mapping is enabled
+			// 포트 맵핑이 켜져있는지 확인
 			if _, nat, err := upnp.client.GetNATRSIPStatus(); err != nil || !nat {
 				return
 			}

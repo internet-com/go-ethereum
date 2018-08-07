@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package nat provides access to common network port mapping protocols.
+// nat패키지는 일반적인 네트워크 포트 매핑 프로토콜에 접근하기 위해 제공된다
 package nat
 
 import (
@@ -31,6 +32,7 @@ import (
 
 // An implementation of nat.Interface can map local ports to ports
 // accessible from the Internet.
+// nat.Interface 구현은 로컬 포트를 인터넷에 접근가능한 포트들로 맵할수 있다
 type Interface interface {
 	// These methods manage a mapping between a port on the local
 	// machine to a port that can be connected to from the internet.
@@ -38,14 +40,19 @@ type Interface interface {
 	// protocol is "UDP" or "TCP". Some implementations allow setting
 	// a display name for the mapping. The mapping may be removed by
 	// the gateway when its lifetime ends.
+	// 이 메소드들은 로컬머신의 포트를 인터넷으로 부터 연결되어질 포트로 맵핑한다
+	// 프로토콜은 udp/tcp이다. 어떤 구현은 매핑에 대한 이름을 허용한다. 
+	// 맵핑은 생명주기가 끝날 경우 게이트 웨이에 의해 제거될 수 있다
 	AddMapping(protocol string, extport, intport int, name string, lifetime time.Duration) error
 	DeleteMapping(protocol string, extport, intport int) error
 
 	// This method should return the external (Internet-facing)
 	// address of the gateway device.
+	// 이 메소드는 게이트웨이 장비의 외부 주소를 반드시 반환해야한다
 	ExternalIP() (net.IP, error)
 
 	// Should return name of the method. This is used for logging.
+	// 메소드의 이름을 반환해야 한다. 로깅에 사용된다
 	String() string
 }
 
@@ -59,6 +66,9 @@ type Interface interface {
 //     "upnp"               uses the Universal Plug and Play protocol
 //     "pmp"                uses NAT-PMP with an auto-detected gateway address
 //     "pmp:192.168.0.1"    uses NAT-PMP with the given gateway address
+// Parse함수는 NAT 인터페이스 표현을 분석한다
+// 아래의 포멧만 현재 허용된다
+// 대소문자는 구분하지 않는다
 func Parse(spec string) (Interface, error) {
 	var (
 		parts = strings.SplitN(spec, ":", 2)
@@ -97,6 +107,8 @@ const (
 
 // Map adds a port mapping on m and keeps it alive until c is closed.
 // This function is typically invoked in its own goroutine.
+// Map 함수는 m 인터페이스에 포트 맵핑을 추가하고 c가 닫힐때 까지 저장한다
+// 이 함수는 자신의 고루틴안에서 싫행된다
 func Map(m Interface, c chan struct{}, protocol string, extport, intport int, name string) {
 	log := log.New("proto", protocol, "extport", extport, "intport", intport, "interface", m)
 	refresh := time.NewTimer(mapUpdateInterval)
@@ -129,6 +141,9 @@ func Map(m Interface, c chan struct{}, protocol string, extport, intport int, na
 // ExtIP assumes that the local machine is reachable on the given
 // external IP address, and that any required ports were mapped manually.
 // Mapping operations will not return an error but won't actually do anything.
+// ExtIP 인터페이스는 로컬 머신이 주어진 외부 ip에 접근가능하다고 가정하고
+// 요구되는모든 포트는 매뉴얼하게 맾핑된다
+// 맵핑 동작은 에러를 리턴하지 않지만 실제로 아무것도 안할것이다
 func ExtIP(ip net.IP) Interface {
 	if ip == nil {
 		panic("IP must not be nil")
@@ -166,6 +181,8 @@ func Any() Interface {
 
 // UPnP returns a port mapper that uses UPnP. It will attempt to
 // discover the address of your router using UDP broadcasts.
+// UPnP인터페이스는 uPnP를 사용하는 포트맵퍼를 반환한다
+// 이 인터페이슨는 udp broad캐스팅을 통해 라우터 어드레스를 발견하려 할것이다
 func UPnP() Interface {
 	return startautodisc("UPnP", discoverUPnP)
 }
@@ -173,6 +190,9 @@ func UPnP() Interface {
 // PMP returns a port mapper that uses NAT-PMP. The provided gateway
 // address should be the IP of your router. If the given gateway
 // address is nil, PMP will attempt to auto-discover the router.
+// PMP 함수는 NAT-PMP를 이용하는 포트맵퍼를 반환한다
+// 제공된 게이트웨이 주소는 라우터 IP여야 한다
+// 주어진 주소가 nil일 경우 PMP는 라우터를 자동 발견 하려 할것이다
 func PMP(gateway net.IP) Interface {
 	if gateway != nil {
 		return &pmp{gw: gateway, c: natpmp.NewClient(gateway)}
@@ -187,8 +207,14 @@ func PMP(gateway net.IP) Interface {
 //
 // This type is useful because discovery can take a while but we
 // want return an Interface value from UPnP, PMP and Auto immediately.
+// autodisc 구조체는 자동으로 발견될 포트 매핑 메카니즘을 나타낸다
+// 이 타입에 대한 인터페이스 메소드 호출들은 발견이 끝날때까지 대기하고
+// 발견된 매캐니즘상의 메소드를 호출할것이다
+// 이 타입은 발견은 시간이 걸리지만 우리는 인터페이스값을 반환받기 원하기 때문에
+// 유용하다
 type autodisc struct {
 	what string // type of interface being autodiscovered
+	// 자동으로 발견될 인터페이스의 타입
 	once sync.Once
 	doit func() Interface
 
@@ -233,6 +259,7 @@ func (n *autodisc) String() string {
 }
 
 // wait blocks until auto-discovery has been performed.
+// wait 함수는 자동 발견이 수행될때까지 대기한다
 func (n *autodisc) wait() error {
 	n.once.Do(func() {
 		n.mu.Lock()

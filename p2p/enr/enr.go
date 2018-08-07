@@ -25,6 +25,7 @@
 // signature. Modifying a record invalidates the signature.
 //
 // Package enr supports the "secp256k1-keccak" identity scheme.
+// enr패키지는 secp256k1-keccak 신원 확인 제도를 지원한다
 package enr
 
 import (
@@ -38,6 +39,7 @@ import (
 )
 
 const SizeLimit = 300 // maximum encoded size of a node record in bytes
+// 노드가 바이트로 레코딩될 최대 인코딩된 크기
 
 var (
 	errNoID           = errors.New("unknown or unspecified identity scheme")
@@ -51,6 +53,7 @@ var (
 )
 
 // Record represents a node record. The zero value is an empty record.
+// Record 구조체는 노드의 기록을 나타낸다. 0은 빈 레코드이다
 type Record struct {
 	seq       uint64 // sequence number
 	signature []byte // the signature
@@ -59,17 +62,20 @@ type Record struct {
 }
 
 // pair is a key/value pair in a record.
+// pair는 레코드 상의 키/값 쌍이다.
 type pair struct {
 	k string
 	v rlp.RawValue
 }
 
 // Signed reports whether the record has a valid signature.
+// Signed 함수는 레코드가 유효한 서명을 가지고있는지를 보고한다
 func (r *Record) Signed() bool {
 	return r.signature != nil
 }
 
 // Seq returns the sequence number.
+// seq함수는 시퀀스 넘버를 반환한다.
 func (r *Record) Seq() uint64 {
 	return r.seq
 }
@@ -77,6 +83,8 @@ func (r *Record) Seq() uint64 {
 // SetSeq updates the record sequence number. This invalidates any signature on the record.
 // Calling SetSeq is usually not required because setting any key in a signed record
 // increments the sequence number.
+// SetSeq함수는 기록의 시퀀스 넘버를 갱신한다. 레코드의 모든 서명을 무효화한다
+// 때때로 서명된 레코드에 키를 설정할 경우 시퀀스 넘버가 증가하기 때문에, 호출이 대부분 필요하지 않다
 func (r *Record) SetSeq(s uint64) {
 	r.signature = nil
 	r.raw = nil
@@ -88,6 +96,10 @@ func (r *Record) SetSeq(s uint64) {
 //
 // Errors returned by Load are wrapped in KeyError. You can distinguish decoding errors
 // from missing keys using the IsNotFound function.
+// Load 함수는 키/값 쌍의 값을 반환한다. 주어진 목록은 포인터여야 하며 
+// 레코드상의 목록 값에 설정될것이다
+// 함수의 반환된 에러는 keyerror로 포장된다. IsNotFiound함수를 이용하여 
+// 읽어버린 키로부터 에러를 디코딩할수 있다
 func (r *Record) Load(e Entry) error {
 	i := sort.Search(len(r.pairs), func(i int) bool { return r.pairs[i].k >= e.ENRKey() })
 	if i < len(r.pairs) && r.pairs[i].k == e.ENRKey() {
@@ -102,6 +114,8 @@ func (r *Record) Load(e Entry) error {
 // Set adds or updates the given entry in the record. It panics if the value can't be
 // encoded. If the record is signed, Set increments the sequence number and invalidates
 // the sequence number.
+// Set함수는 주어진 목록을 기록상에 추가하거나 갱신한다. 값이 인코딩될수 없다면 패닉이 발생한다
+// 레코드가 서명되었을 경우 시퀀스 번호를 증가시키고 시퀀스 번호를 무효화한다
 func (r *Record) Set(e Entry) {
 	blob, err := rlp.EncodeToBytes(e)
 	if err != nil {
@@ -115,15 +129,18 @@ func (r *Record) Set(e Entry) {
 	switch {
 	case i < len(pairs) && pairs[i].k == e.ENRKey():
 		// element is present at r.pairs[i]
+		// 원소가 r.pairs[i]위치에 존재함
 		pairs[i].v = blob
 	case i < len(r.pairs):
 		// insert pair before i-th elem
+		// 패어를 i번째 원소 앞에 삽입
 		el := pair{e.ENRKey(), blob}
 		pairs = append(pairs, pair{})
 		copy(pairs[i+1:], pairs[i:])
 		pairs[i] = el
 	default:
 		// element should be placed at the end of r.pairs
+		// 원소가 r.pairs의 맨끝에 위치해야한다
 		pairs = append(pairs, pair{e.ENRKey(), blob})
 	}
 	r.pairs = pairs
@@ -139,6 +156,8 @@ func (r *Record) invalidate() {
 
 // EncodeRLP implements rlp.Encoder. Encoding fails if
 // the record is unsigned.
+// EncodeRLP함수는 rlp.Encoder를 구현한다. 
+// 레코드가 서명되지 않았다면 인코딩은 실패한다
 func (r Record) EncodeRLP(w io.Writer) error {
 	if !r.Signed() {
 		return errEncodeUnsigned
@@ -148,6 +167,7 @@ func (r Record) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP implements rlp.Decoder. Decoding verifies the signature.
+// DecodeRLP함수는 rlp.Decoder를 구현한다 Decoding함수는 서명을 검증한다
 func (r *Record) DecodeRLP(s *rlp.Stream) error {
 	raw, err := s.Raw()
 	if err != nil {
@@ -158,6 +178,7 @@ func (r *Record) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	// Decode the RLP container.
+	// rlp컨테이너를 해독한다
 	dec := Record{raw: raw}
 	s = rlp.NewStream(bytes.NewReader(raw), 0)
 	if _, err := s.List(); err != nil {
@@ -170,6 +191,7 @@ func (r *Record) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	// The rest of the record contains sorted k/v pairs.
+	// 남은 기록은 정렬된 키/값 쌍을 포함한다
 	var prevkey string
 	for i := 0; ; i++ {
 		var kv pair
@@ -213,6 +235,8 @@ func (r *Record) DecodeRLP(s *rlp.Stream) error {
 
 // NodeAddr returns the node address. The return value will be nil if the record is
 // unsigned or uses an unknown identity scheme.
+// NodeAddr함수는 노드의 주소를 반환한다. 기록이 서명되지 않았거나,
+// 알려지지 않은 신원확인 방법을 사용할 경우 반환값은 nil이다
 func (r *Record) NodeAddr() []byte {
 	_, scheme := r.idScheme()
 	if scheme == nil {
@@ -223,10 +247,14 @@ func (r *Record) NodeAddr() []byte {
 
 // SetSig sets the record signature. It returns an error if the encoded record is larger
 // than the size limit or if the signature is invalid according to the passed scheme.
+// Setsig함수는 기록에 서명한다. 이함수는 인코딩된 결과가 사이즈 리밋을 넘거나 
+// 서명이 올바르지 않을때 에러를 리턴한다
 func (r *Record) SetSig(idscheme string, sig []byte) error {
 	// Check that "id" is set and matches the given scheme. This panics because
 	// inconsitencies here are always implementation bugs in the signing function calling
 	// this method.
+	// id가 설정되었고 주어진 방식에 적합한지 확인한다
+	// 이부분이 완결하지 않다면 서명 함수에 언재나 구현 에러가 있는것이기 때문에 패닉이 발생한다
 	id, s := r.idScheme()
 	if s == nil {
 		panic(errNoID)
@@ -236,6 +264,7 @@ func (r *Record) SetSig(idscheme string, sig []byte) error {
 	}
 
 	// Verify against the scheme.
+	// 방식에대해 검증
 	if err := s.Verify(r, sig); err != nil {
 		return err
 	}
@@ -248,6 +277,7 @@ func (r *Record) SetSig(idscheme string, sig []byte) error {
 }
 
 // AppendElements appends the sequence number and entries to the given slice.
+// AppendElemets함수는 시퀀스 번호와 리스트를 주어진 조각에 추가한다
 func (r *Record) AppendElements(list []interface{}) []interface{} {
 	list = append(list, r.seq)
 	for _, p := range r.pairs {
@@ -275,4 +305,4 @@ func (r *Record) idScheme() (string, IdentityScheme) {
 		return "", nil
 	}
 	return string(id), FindIdentityScheme(string(id))
-}
+

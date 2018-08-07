@@ -28,16 +28,19 @@ import (
 )
 
 // Registry of known identity schemes.
+// 알려진 신원정책의 보관소
 var schemes sync.Map
 
 // An IdentityScheme is capable of verifying record signatures and
 // deriving node addresses.
+// IdentityScheme 인터페이스는 기록의 서명을 검증하고 노드 주소를 유도할수 있다
 type IdentityScheme interface {
 	Verify(r *Record, sig []byte) error
 	NodeAddr(r *Record) []byte
 }
 
 // RegisterIdentityScheme adds an identity scheme to the global registry.
+// RegisterIdentityScheme함수는 전체 보관소에 신원정책을 추가한다
 func RegisterIdentityScheme(name string, scheme IdentityScheme) {
 	if _, loaded := schemes.LoadOrStore(name, scheme); loaded {
 		panic("identity scheme " + name + " already registered")
@@ -45,6 +48,7 @@ func RegisterIdentityScheme(name string, scheme IdentityScheme) {
 }
 
 // FindIdentityScheme resolves name to an identity scheme in the global registry.
+// FindIdentityScheme함수는 전체 보관소의 신원확인 정책의 이름을 찾는다
 func FindIdentityScheme(name string) IdentityScheme {
 	s, ok := schemes.Load(name)
 	if !ok {
@@ -54,6 +58,7 @@ func FindIdentityScheme(name string) IdentityScheme {
 }
 
 // v4ID is the "v4" identity scheme.
+// V4ID 타입은 v4신원정책이다
 type v4ID struct{}
 
 func init() {
@@ -61,8 +66,10 @@ func init() {
 }
 
 // SignV4 signs a record using the v4 scheme.
+// SignV4함수는 v4정책으로 기록에 서명한다
 func SignV4(r *Record, privkey *ecdsa.PrivateKey) error {
 	// Copy r to avoid modifying it if signing fails.
+	// 서명이 실패했을때 수정을 회피하기 위해 r을 복사한다
 	cpy := *r
 	cpy.Set(ID("v4"))
 	cpy.Set(Secp256k1(privkey.PublicKey))
@@ -81,6 +88,7 @@ func SignV4(r *Record, privkey *ecdsa.PrivateKey) error {
 }
 
 // s256raw is an unparsed secp256k1 public key entry.
+// s256raw 타입은 파싱되지 않은 secp256k1의 공개 키리스트이다
 type s256raw []byte
 
 func (s256raw) ENRKey() string { return "secp256k1" }

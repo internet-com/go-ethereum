@@ -17,6 +17,7 @@
 package netutil
 
 // IsTemporaryError checks whether the given error should be considered temporary.
+// IsTemporaryError함수는 주어진 에러가 임시적으로 고려되어야 하는지 체크한다
 func IsTemporaryError(err error) bool {
 	tempErr, ok := err.(interface {
 		Temporary() bool

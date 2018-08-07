@@ -27,6 +27,7 @@ import (
 
 // natPMPClient adapts the NAT-PMP protocol implementation so it conforms to
 // the common interface.
+// natPmPClient 구조체는 공통의 인터페이스로서 동작하기 위해 NAT-PMP 프로토콜 구현을 차용한다 
 type pmp struct {
 	gw net.IP
 	c  *natpmp.Client
@@ -50,6 +51,7 @@ func (n *pmp) AddMapping(protocol string, extport, intport int, name string, lif
 	}
 	// Note order of port arguments is switched between our
 	// AddMapping and the client's AddPortMapping.
+	// 포트 인자의 순서는 우리의 AddMapping과 클라이언트들의 AddPortMapping에 의해 바뀐다
 	_, err := n.c.AddPortMapping(strings.ToLower(protocol), intport, extport, int(lifetime/time.Second))
 	return err
 }
@@ -58,12 +60,15 @@ func (n *pmp) DeleteMapping(protocol string, extport, intport int) (err error) {
 	// To destroy a mapping, send an add-port with an internalPort of
 	// the internal port to destroy, an external port of zero and a
 	// time of zero.
+	// 맵핑을 끝내기 위해서 add port를 삭제할 내부 포트와 함께 전송한다
+	// 외부 포트와 시간은 0이다
 	_, err = n.c.AddPortMapping(strings.ToLower(protocol), intport, 0, 0)
 	return err
 }
 
 func discoverPMP() Interface {
 	// run external address lookups on all potential gateways
+	// 가능한 모든 게이트웨이의 외부 어드래스 탐색을 실행한다
 	gws := potentialGateways()
 	found := make(chan *pmp, len(gws))
 	for i := range gws {
@@ -80,6 +85,8 @@ func discoverPMP() Interface {
 	// return the one that responds first.
 	// discovery needs to be quick, so we stop caring about
 	// any responses after a very short timeout.
+	// 처음 응답한 것을 반환한다
+	// 발견은 빨라야 하기 때문에, 우리는 짧은시간 이후의 응답을 무시한다
 	timeout := time.NewTimer(1 * time.Second)
 	defer timeout.Stop()
 	for range gws {

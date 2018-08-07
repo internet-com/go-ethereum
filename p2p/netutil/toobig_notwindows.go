@@ -21,6 +21,8 @@ package netutil
 // isPacketTooBig reports whether err indicates that a UDP packet didn't
 // fit the receive buffer. There is no such error on
 // non-Windows platforms.
+// isPacketTooBig함수는 UDP패킷이 수신 버퍼에 맞지 않음을 보고한다. 
+// 윈도우가 아닌 플랫폼에는 그런에러가 없다
 func isPacketTooBig(err error) bool {
 	return false
 }
